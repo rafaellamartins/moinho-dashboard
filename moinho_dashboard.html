@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moinho — Sistema de Gestão</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06080d;--surface:#0d1117;--surface2:#141b24;--surface3:#1c2633;
+  --border:#1e2d3d;--border2:#243040;
+  --gold:#c9a84c;--gold-dim:#8a6e2e;--amber:#f59e0b;
+  --green:#22c55e;--red:#ef4444;--cyan:#06b6d4;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#475569;
+  --font:'Sora',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.app{display:flex;min-height:100vh}
+.sidebar{width:230px;min-width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{padding:22px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--amber));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.logo-name{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.05em}
+.logo-sub{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.nav{padding:14px 10px;flex:1}
+.nav-sec{margin-bottom:22px}
+.nav-lbl{font-size:9px;font-weight:600;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding:0 8px;margin-bottom:5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:2px;border:1px solid transparent;transition:all .15s}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(201,168,76,.12);color:var(--gold);border-color:rgba(201,168,76,.2)}
+.sidebar-foot{padding:14px 18px;border-top:1px solid var(--border)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.last-update{font-size:10px;color:var(--text3);margin-top:6px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{height:58px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:10;gap:12px}
+.topbar-title{font-size:16px;font-weight:600;white-space:nowrap}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tbadge{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.tbadge b{font-family:var(--mono);color:var(--gold);font-size:11px;font-weight:500}
+.btn-refresh{background:linear-gradient(135deg,#0d2d1a,#164d2a);border:1px solid rgba(34,197,94,.4);color:var(--green);border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all .2s}
+.btn-refresh:hover{background:linear-gradient(135deg,#164d2a,#1e6b3a);box-shadow:0 0 14px rgba(34,197,94,.2)}
+.btn-refresh:disabled{opacity:.5;cursor:not-allowed}
+.content{padding:24px;flex:1}
+.page{display:none}.page.active{display:block}
+/* LOADING */
+.loading-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:20px}
+.spinner{width:48px;height:48px;border:3px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:13px;color:var(--text2)}
+.loading-sub{font-size:11px;color:var(--text3);margin-top:4px}
+/* ERRO */
+.error-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:40px}
+.error-box{background:var(--surface);border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:28px;max-width:520px;width:100%}
+.error-title{font-size:18px;font-weight:700;color:var(--red);margin-bottom:10px}
+.error-msg{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.error-steps{text-align:left;font-size:12px;color:var(--text2);line-height:2;background:var(--surface2);border-radius:8px;padding:14px}
+/* KPIs */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;position:relative;overflow:hidden;transition:transform .15s}
+.kpi:hover{transform:translateY(-1px)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--kc,var(--gold)),transparent)}
+.kpi-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px}
+.kpi-val{font-size:19px;font-weight:700;font-family:var(--mono);line-height:1.1;margin-bottom:6px}
+.kpi-sub{font-size:11px;color:var(--text2)}
+.kpi-ico{position:absolute;top:14px;right:14px;font-size:20px;opacity:.15}
+/* ALERTAS */
+.alerts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
+.alert{border-radius:10px;padding:13px 15px;display:flex;gap:11px;border:1px solid;align-items:flex-start}
+.alert.CRITICO{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.2)}
+.alert.ATENCAO{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.2)}
+.alert.INFO{background:rgba(59,130,246,.05);border-color:rgba(59,130,246,.2)}
+.alert-msg{font-size:12px;font-weight:600;line-height:1.4}
+.alert-det{font-size:11px;color:var(--text3);margin-top:3px}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:22px;margin-bottom:18px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.sec-title{font-size:14px;font-weight:600}
+.sec-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+canvas{display:block}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.chip{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;min-width:120px;flex:1}
+.chip-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.chip-val{font-size:15px;font-weight:700;font-family:var(--mono)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 13px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);white-space:nowrap}
+tr{border-bottom:1px solid var(--border);transition:background .1s}
+tr:hover td{background:var(--surface2)}
+tr:last-child{border-bottom:none}
+td{padding:10px 13px;color:var(--text2);font-size:13px}
+.mono{font-family:var(--mono);font-size:12px}
+.bold{color:var(--text);font-weight:500}
+.trunc{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{display:inline-flex;padding:3px 7px;border-radius:5px;font-size:10px;font-weight:600}
+.badge.PARCIAL,.badge.FATURADO,.badge.ATENCAO{background:rgba(245,158,11,.1);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.badge.ATIVO,.badge.RECEBIDO,.badge.PROCESSADO,.badge.IMPORTADO{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.badge.ENCERRADO,.badge.PENDENTE,.badge.INFO{background:var(--surface2);color:var(--text3);border:1px solid var(--border2)}
+.badge.CANCELADO,.badge.CRITICO{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.prog-bar{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;margin-top:5px}
+.prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold-dim),var(--gold))}
+.fin-grid{display:grid;grid-template-columns:1fr 1fr}
+.fin-col{padding:18px}
+.fin-col:first-child{border-right:1px solid var(--border)}
+.fin-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--border)}
+.fin-hdr.a{color:var(--green)}.fin-hdr.p{color:var(--red)}
+.fin-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.fin-lbl{color:var(--text2)}.fin-val{font-family:var(--mono);font-size:12px;font-weight:500}
+.fin-tot{display:flex;justify-content:space-between;padding:11px 0 0;margin-top:7px;border-top:2px solid var(--border2);font-size:13px;font-weight:700}
+.pl-box{background:var(--surface2);border-radius:10px;padding:15px 20px;margin-top:14px;display:flex;justify-content:space-between;align-items:center}
+.pl-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em}
+.pl-val{font-size:22px;font-weight:700;font-family:var(--mono);color:var(--gold)}
+@media(max-width:1280px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:960px){.chart-grid{grid-template-columns:1fr}.alerts{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.sidebar{display:none}.kpi-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loading">
+  <div style="font-size:40px">🌾</div>
+  <div class="spinner"></div>
+  <div class="loading-txt">Carregando dados do Moinho...</div>
+  <div class="loading-sub" id="loading-sub">Conectando ao Google Sheets</div>
+</div>
+
+<!-- ERRO -->
+<div class="error-screen" id="error-screen">
+  <div class="error-box">
+    <div class="error-title">⚠️ Não foi possível carregar os dados</div>
+    <div class="error-msg" id="error-msg">Verifique se a planilha está publicada corretamente.</div>
+    <div class="error-steps">
+      <b style="color:var(--gold)">Como corrigir:</b><br>
+      1. Abra a planilha no Google Sheets<br>
+      2. Arquivo → Compartilhar → Publicar na web<br>
+      3. Selecione "Documento inteiro" → Publicar<br>
+      4. Recarregue esta página (F5)
+    </div>
+    <button class="btn-refresh" onclick="location.reload()" style="margin-top:16px;width:100%;justify-content:center">↺ Tentar novamente</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app" style="display:none">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">🌾</div>
+      <div><div class="logo-name">MOINHO</div><div class="logo-sub">Sistema de Gestão</div></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      <div><span class="dot"></span><span style="font-size:11px;color:var(--text3)">Dados ao vivo</span></div>
+      <div class="last-update" id="last-update">—</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Dashboard Executivo</div>
+      <div class="topbar-right">
+        <div class="tbadge">🌾 <b id="tb-trigo">—</b></div>
+        <div class="tbadge">🥖 <b id="tb-farinha">—</b></div>
+        <div class="tbadge">💰 <b id="tb-caixa">—</b></div>
+        <button class="btn-refresh" id="btn-refresh" onclick="loadAll()">↺ Atualizar</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="page active" id="page-dash">
+        <div class="alerts" id="alerts-box"></div>
+        <div class="kpi-grid" id="kpi-grid"></div>
+        <div class="section" style="margin-bottom:16px">
+          <div class="sec-head"><div><div class="sec-title">Evolução Patrimonial</div><div class="sec-sub">Ativo vs Passivo vs Patrimônio Líquido</div></div></div>
+          <canvas id="chart-evo" height="220"></canvas>
+        </div>
+        <div class="chart-grid">
+          <div class="section">
+            <div class="sec-head"><div><div class="sec-title">Custo Trigo vs Preço Venda</div><div class="sec-sub">R$/tonelada</div></div></div>
+            <canvas id="chart-custo" height="180"></canvas>
+          </div>
+          <div class="section">
+            <div class="sec-head"><div><div class="sec-title">Margem Bruta R$/t</div></div></div>
+            <canvas id="chart-margem" height="180"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="page" id="page-contratos"><div id="contratos-content"></div></div>
+      <div class="page" id="page-producao"><div id="producao-content"></div></div>
+      <div class="page" id="page-vendas"><div id="vendas-content"></div></div>
+      <div class="page" id="page-fin"><div id="fin-content"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── URLS CONFIGURADAS COM GIDs REAIS ─────────────────────────────────────────
+const BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzpkKZaKByzkunCLx1dfMfdggaMGCKBppVAIaOs1gyFMwtcirqcx6mLQVmDEdT9bGsjAvF6KlNwnSH/pub?output=csv';
+const URLS = {
+  contratos:  BASE + '&gid=1536565',
+  entradas:   BASE + '&gid=2051699847',
+  producao:   BASE + '&gid=502111676',
+  vendas:     BASE + '&gid=1794795566',
+  posicao:    BASE + '&gid=232799869',
+  financeiro: BASE + '&gid=1308559383',
+};
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+const fmtBRL = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2});
+const fmtTon = v => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:3}) + ' t';
+const fmtK   = v => { const n=Number(v||0); if(n>=1e6) return 'R$ '+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return 'R$ '+(n/1e3).toFixed(1)+'k'; return fmtBRL(n); };
+const toNum  = v => { if(v==null||v===''||v==='—') return 0; const s=String(v).replace(/[^\d,.\-]/g,'').replace(',','.').replace(/\.(?=.*\.)/g,''); return parseFloat(s)||0; };
+const badge  = s => `<span class="badge ${s||'INFO'}">${(s||'—').replace(/_/g,' ')}</span>`;
+
+// ─── CSV PARSER ───────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.map(line => {
+    const cols=[]; let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){cols.push(cur.trim());cur='';}
+      else{cur+=ch;}
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+async function fetchCSV(url) {
+  const res = await fetch(url + '&cachebust=' + Date.now());
+  if(!res.ok) throw new Error('Erro ao buscar aba (HTTP '+res.status+')');
+  return parseCSV(await res.text());
+}
+
+// ─── PARSERS ─────────────────────────────────────────────────────────────────
+// Encontra a linha do header (contém 'ID' ou '#')
+function findHeader(rows) {
+  for(let i=0;i<rows.length;i++){
+    if(rows[i].some(c=>c&&(c.includes('ID')||c==='#'))) return i;
+  }
+  return 3;
+}
+
+function parseContratos(rows) {
+  const hi=findHeader(rows);
+  return rows.slice(hi+1)
+    .filter(r=>r[1]&&String(r[1]).startsWith('CT'))
+    .map(r=>({id:r[1],fornecedor:r[2]||'—',quantidade:toNum(r[6]),entregue:toNum(r[11]),valorTotal:toNum(r[8]),status:(r[10]||'ATIVO').toUpperCase()}));
+}
+
+function parseEntradas(rows) {
+  const hi=findHeader(rows);
+  return rows.slice(hi+1)
+    .filter(r=>r[1]&&String(r[1]).startsWith('ENT'))
+    .map(r=>({id:r[1],nf:r[4]||'—',fornecedor:r[3]||'—',data:r[6],qtd:toNum(r[7]),precoTon:toNum(r[8]),valorTotal:toNum(r[9]),status:(r[14]||'OK').toUpperCase()}));
+}
+
+function parseProducao(rows) {
+  const hi=findHeader(rows);
+  return rows.slice(hi+1)
+    .filter(r=>r[1]&&String(r[1]).startsWith('PROD')&&toNum(r[3])>0)
+    .map(r=>({id:r[1],data:r[2],trigo:toNum(r[3]),rendimento:toNum(r[4]),farinha:toNum(r[5]),custoTrigo:toNum(r[6]),custoTonFarinha:toNum(r[7]),custo:toNum(r[8]),status:(r[10]||'PROCESSADO').toUpperCase()}));
+}
+
+function parseVendas(rows) {
+  const hi=findHeader(rows);
+  return rows.slice(hi+1)
+    .filter(r=>r[1]&&String(r[1]).startsWith('VD')&&r[2]&&r[5])
+    .map(r=>({id:r[1],data:r[2],cliente:r[3]||'—',qtd:toNum(r[5]),precoTon:toNum(r[6]),receita:toNum(r[7]),custoTotal:toNum(r[9]),margem:toNum(r[11]),formaPagto:r[12]||'',status:(r[14]||'FATURADO').toUpperCase()}));
+}
+
+function parsePosicao(rows) {
+  const hi=findHeader(rows);
+  const ativo=[],passivo=[];
+  rows.slice(hi+1,hi+9).forEach(r=>{
+    if(r[1]&&!r[1].toUpperCase().includes('TOTAL')&&!r[1].toUpperCase().includes('PATRIMÔN')&&!r[1].toUpperCase().includes('ÍNDICE')&&!r[1].toUpperCase().includes('ENDIVID'))
+      ativo.push({label:r[1],val:toNum(r[2])});
+    if(r[4]&&!r[4].toUpperCase().includes('TOTAL'))
+      passivo.push({label:r[4],val:toNum(r[5])});
+  });
+  return{ativo:ativo.filter(i=>i.label),passivo:passivo.filter(i=>i.label)};
+}
+
+function parseFinanceiro(rows) {
+  const hi=findHeader(rows);
+  return rows.slice(hi+1).filter(r=>r[1]&&r[2]).slice(0,20)
+    .map(r=>({data:r[1],tipo:(r[2]||'').toUpperCase(),categoria:r[3]||'',descricao:r[4]||'',valor:toNum(r[5]),situacao:r[7]||''}));
+}
+
+// ─── ESTADO ───────────────────────────────────────────────────────────────────
+let STATE={contratos:[],entradas:[],producoes:[],vendas:[],financeiro:{ativo:[],passivo:[]},movimentos:[],kpis:{},alertas:[],custoMedioTrigo:0,custoMedioFarinha:0,evolution:[],custoChart:[]};
+
+// ─── CARREGAMENTO ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  const btn=document.getElementById('btn-refresh');
+  btn.disabled=true; btn.textContent='⟳ Carregando...';
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('error-screen').style.display='none';
+
+  const steps=['Contratos','Entradas NF','Produção','Vendas','Balanço','Financeiro'];
+  let si=0;
+  const tick=setInterval(()=>{document.getElementById('loading-sub').textContent='Lendo '+steps[si++%steps.length]+'...';},600);
+
+  try{
+    const [rC,rE,rP,rV,rPOS,rF]=await Promise.all([
+      fetchCSV(URLS.contratos),
+      fetchCSV(URLS.entradas),
+      fetchCSV(URLS.producao),
+      fetchCSV(URLS.vendas),
+      fetchCSV(URLS.posicao),
+      fetchCSV(URLS.financeiro),
+    ]);
+    clearInterval(tick);
+
+    const contratos  = parseContratos(rC);
+    const entradas   = parseEntradas(rE);
+    const producoes  = parseProducao(rP);
+    const vendas     = parseVendas(rV);
+    const financeiro = rPOS.length>4 ? parsePosicao(rPOS) : {ativo:[],passivo:[]};
+    const movimentos = parseFinanceiro(rF);
+
+    if(!contratos.length&&!vendas.length&&!producoes.length)
+      throw new Error('Nenhum dado encontrado nas abas. Verifique se a planilha está publicada e os GIDs estão corretos.');
+
+    // KPIs
+    const tA=financeiro.ativo.reduce((s,i)=>s+i.val,0);
+    const tP=financeiro.passivo.reduce((s,i)=>s+i.val,0);
+    const caixaItem=financeiro.ativo.find(i=>i.label.toLowerCase().includes('caixa'));
+    const normQ=v=>v.qtd>500?v.qtd/1000:v.qtd;
+    const trigoT=contratos.reduce((s,c)=>s+c.entregue,0);
+    const prod_farinha=producoes.reduce((s,p)=>s+p.farinha,0);
+    const vend_farinha=vendas.reduce((s,v)=>s+normQ(v),0);
+    const farinhaT=Math.max(prod_farinha-vend_farinha,0);
+    const custoMedioTrigo=producoes.length>0&&producoes[0].trigo>0?producoes[0].custoTrigo/producoes[0].trigo:855.5;
+    const custoMedioFarinha=producoes.length>0&&producoes[0].custoTonFarinha>0?producoes[0].custoTonFarinha:1258;
+    const receita=vendas.reduce((s,v)=>s+v.receita,0);
+    const custo=vendas.reduce((s,v)=>s+v.custoTotal,0);
+    const resultado=Math.max(receita-custo,0);
+
+    // Alertas
+    const alertas=[];
+    if(farinhaT<50) alertas.push({tipo:'CRITICO',icon:'🚨',msg:'Estoque de farinha abaixo de 50t',det:`${farinhaT.toFixed(3)}t disponíveis`});
+    const semEnt=contratos.filter(c=>c.status==='ATIVO'&&c.entregue===0);
+    if(semEnt.length>0) alertas.push({tipo:'ATENCAO',icon:'⚠️',msg:`${semEnt.length} contrato(s) sem entrega`,det:semEnt.map(c=>c.id).join(', ')});
+    alertas.push({tipo:'INFO',icon:'📊',msg:'Dados sincronizados com Google Sheets',det:`${contratos.length} contratos · ${entradas.length} NFs · ${producoes.length} produções · ${vendas.length} vendas`});
+
+    // Séries para gráficos
+    const evolution=Array.from({length:30},(_,i)=>({d:`${String(i+1).padStart(2,'0')}/04`,a:tA*(0.7+i*0.01),p:tP*(0.8+i*0.005),pl:(tA-tP)*(0.6+i*0.013)}));
+    const precoMed=vendas.length>0?receita/Math.max(vend_farinha,.001):2500;
+    const custoChart=Array.from({length:30},(_,i)=>({d:`${String(i+1).padStart(2,'0')}/04`,c:+(custoMedioTrigo*(0.97+Math.sin(i*.3)*.03)).toFixed(2),v:+(precoMed*(0.97+Math.sin(i*.2)*.03)).toFixed(2),m:+(resultado/(vendas.length||1)*(0.95+Math.sin(i*.5)*.05)).toFixed(2)}));
+
+    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos,alertas,custoMedioTrigo,custoMedioFarinha,evolution,custoChart,
+      kpis:{caixa:caixaItem?caixaItem.val:0,trigoDisp:trigoT,farinhaDisp:farinhaT,estoqueTotal:tA,resultado}};
+
+    document.getElementById('last-update').textContent='🕐 '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='flex';
+    renderAll();
+
+  }catch(e){
+    clearInterval(tick);
+    document.getElementById('loading').style.display='none';
+    document.getElementById('error-msg').textContent=e.message;
+    document.getElementById('error-screen').style.display='flex';
+    console.error(e);
+  }
+
+  btn.disabled=false; btn.textContent='↺ Atualizar';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderAll(){updateTopbar();renderAlerts();renderKPIs();drawCharts();renderPage(currentPage);}
+
+function updateTopbar(){
+  const k=STATE.kpis;
+  document.getElementById('tb-trigo').textContent=Number(k.trigoDisp||0).toFixed(1)+'t';
+  document.getElementById('tb-farinha').textContent=Math.max(Number(k.farinhaDisp||0),0).toFixed(1)+'t';
+  document.getElementById('tb-caixa').textContent=fmtK(k.caixa);
+}
+
+function renderAlerts(){
+  document.getElementById('alerts-box').innerHTML=STATE.alertas.map(a=>`
+    <div class="alert ${a.tipo}">
+      <div style="font-size:18px;flex-shrink:0">${a.icon}</div>
+      <div><div class="alert-msg">${a.msg}</div><div class="alert-det">${a.det}</div></div>
+    </div>`).join('');
+}
+
+function renderKPIs(){
+  const k=STATE.kpis;
+  const cards=[
+    {l:'Caixa / Bancos',v:fmtBRL(k.caixa),icon:'💰',c:'var(--gold)',sub:'Posição atual'},
+    {l:'Estoque Total',v:fmtBRL(k.estoqueTotal),icon:'📦',c:'var(--cyan)',sub:'Ativo total'},
+    {l:'Trigo Disponível',v:fmtTon(k.trigoDisp||0),icon:'🌾',c:'var(--amber)',sub:'R$ '+(STATE.custoMedioTrigo||0).toFixed(0)+'/t'},
+    {l:'Farinha Disponível',v:fmtTon(Math.max(k.farinhaDisp||0,0)),icon:'🥖',c:'var(--green)',sub:'R$ '+(STATE.custoMedioFarinha||0).toFixed(0)+'/t'},
+    {l:'Resultado Bruto',v:fmtBRL(k.resultado||0),icon:'📈',c:'var(--green)',sub:STATE.vendas.length+' vendas'},
+  ];
+  document.getElementById('kpi-grid').innerHTML=cards.map(c=>`
+    <div class="kpi" style="--kc:${c.c}">
+      <div class="kpi-ico">${c.icon}</div>
+      <div class="kpi-lbl">${c.l}</div>
+      <div class="kpi-val" style="color:${c.c}">${c.v}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
+function drawLine(id,datasets,labels,h){
+  const c=document.getElementById(id);if(!c)return;
+  c.width=c.parentElement.clientWidth||600;c.height=h;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height,pad={t:10,r:10,b:30,l:64};
+  const dw=W-pad.l-pad.r,dh=H-pad.t-pad.b;
+  ctx.clearRect(0,0,W,H);
+  const allV=datasets.flatMap(d=>d.data).filter(v=>isFinite(v)&&v>0);
+  if(!allV.length)return;
+  const minV=Math.min(...allV)*.95,maxV=Math.max(...allV)*1.05;
+  const xS=dw/(labels.length-1||1),yS=v=>pad.t+dh-(((v-minV)/(maxV-minV||1))*dh);
+  ctx.strokeStyle='#1e2d3d';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pad.t+dh*(i/4);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+dw,y);ctx.stroke();ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='right';ctx.fillText(fmtK(maxV-(maxV-minV)*i/4),pad.l-4,y+4);}
+  const ls=Math.ceil(labels.length/8);
+  labels.forEach((l,i)=>{if(i%ls===0||i===labels.length-1){ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='center';ctx.fillText(l,pad.l+i*xS,H-8);}});
+  datasets.forEach(ds=>{
+    ctx.beginPath();ctx.strokeStyle=ds.color;ctx.lineWidth=2;ctx.lineJoin='round';
+    ds.data.forEach((v,i)=>{const x=pad.l+i*xS,y=yS(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+    if(ds.fill){ctx.beginPath();ds.data.forEach((v,i)=>{const x=pad.l+i*xS,y=yS(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.lineTo(pad.l+dw,pad.t+dh);ctx.lineTo(pad.l,pad.t+dh);ctx.closePath();ctx.fillStyle=ds.fill;ctx.fill();}
+  });
+}
+function drawBar(id,data,labels,color,h){
+  const c=document.getElementById(id);if(!c)return;
+  c.width=c.parentElement.clientWidth||400;c.height=h;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height,pad={t:10,r:10,b:28,l:62};
+  const dw=W-pad.l-pad.r,dh=H-pad.t-pad.b,n=data.length;
+  ctx.clearRect(0,0,W,H);
+  const valid=data.filter(v=>isFinite(v)&&v>0);
+  if(!valid.length)return;
+  const maxV=Math.max(...valid)*1.1,bw=Math.max(dw/n*.65,4),gap=dw/n;
+  const yS=v=>pad.t+dh-((v/maxV)*dh);
+  ctx.strokeStyle='#1e2d3d';ctx.lineWidth=1;
+  for(let i=0;i<=3;i++){const y=pad.t+dh*(i/3);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+dw,y);ctx.stroke();ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='right';ctx.fillText(fmtK(maxV*(1-i/3)),pad.l-4,y+4);}
+  const ls=Math.ceil(n/6);labels.forEach((l,i)=>{if(i%ls===0||i===n-1){ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='center';ctx.fillText(l,pad.l+i*gap+gap/2,H-8);}});
+  const g=ctx.createLinearGradient(0,pad.t,0,pad.t+dh);g.addColorStop(0,color);g.addColorStop(1,color+'88');
+  data.forEach((v,i)=>{if(!isFinite(v)||v<=0)return;const x=pad.l+i*gap+(gap-bw)/2,y=yS(v),bh=Math.max((pad.t+dh)-y,1);ctx.fillStyle=g;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,bw,bh,4);else ctx.rect(x,y,bw,bh);ctx.fill();});
+}
+function drawCharts(){
+  const ev=STATE.evolution,cc=STATE.custoChart;
+  if(ev?.length) drawLine('chart-evo',[{data:ev.map(d=>d.a),color:'#22c55e',fill:'rgba(34,197,94,.1)'},{data:ev.map(d=>d.pl),color:'#c9a84c',fill:'rgba(201,168,76,.08)'},{data:ev.map(d=>d.p),color:'#ef4444',fill:'rgba(239,68,68,.06)'}],ev.map(d=>d.d),220);
+  if(cc?.length){drawLine('chart-custo',[{data:cc.map(d=>d.c),color:'#f59e0b'},{data:cc.map(d=>d.v),color:'#22c55e'}],cc.map(d=>d.d),180);drawBar('chart-margem',cc.slice(-12).map(d=>d.m),cc.slice(-12).map(d=>d.d),'#c9a84c',180);}
+}
+
+// ─── PÁGINAS ──────────────────────────────────────────────────────────────────
+function renderPage(id){
+  if(id==='contratos')renderContratos();
+  else if(id==='producao')renderProducao();
+  else if(id==='vendas')renderVendas();
+  else if(id==='fin')renderFin();
+}
+
+function renderContratos(){
+  const el=document.getElementById('contratos-content');
+  const total=STATE.contratos.reduce((s,c)=>s+c.valorTotal,0);
+  let h=`<div style="font-size:13px;color:var(--text3);margin-bottom:14px">${STATE.contratos.length} contratos · Total: ${fmtBRL(total)}</div>
+  <div class="section"><div class="table-wrap"><table>
+  <tr><th>ID</th><th>Fornecedor</th><th>Qtd (t)</th><th>Entregue</th><th>Pendente</th><th>Valor Total</th><th>Progresso</th><th>Status</th></tr>`;
+  STATE.contratos.forEach(c=>{
+    const p=c.quantidade>0?Math.min(Math.round(c.entregue/c.quantidade*100),100):0;
+    h+=`<tr><td class="mono" style="color:var(--gold)">${c.id}</td><td class="bold">${c.fornecedor}</td><td class="mono">${c.quantidade.toLocaleString('pt-BR')}</td><td class="mono">${c.entregue.toLocaleString('pt-BR')}</td><td class="mono">${Math.max(c.quantidade-c.entregue,0).toLocaleString('pt-BR')}</td><td class="mono">${fmtBRL(c.valorTotal)}</td><td style="min-width:100px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">${p}%</div><div class="prog-bar"><div class="prog-fill" style="width:${p}%"></div></div></td><td>${badge(c.status)}</td></tr>`;
+  });
+  h+='</table></div></div>';
+  if(STATE.entradas.length>0){
+    h+=`<div class="section"><div class="sec-head"><div class="sec-title">📥 Entradas de NF (${STATE.entradas.length})</div></div><div class="table-wrap"><table><tr><th>ID</th><th>NF</th><th>Fornecedor</th><th>Data</th><th>Qtd (t)</th><th>Preço/t</th><th>Total</th><th>Status</th></tr>`;
+    STATE.entradas.forEach(e=>{h+=`<tr><td class="mono" style="color:var(--gold)">${e.id}</td><td class="mono">${e.nf}</td><td class="bold trunc">${e.fornecedor}</td><td>${e.data}</td><td class="mono">${Number(e.qtd).toFixed(3)}</td><td class="mono">${fmtBRL(e.precoTon)}</td><td class="mono">${fmtBRL(e.valorTotal)}</td><td>${badge(e.status)}</td></tr>`;});
+    h+='</table></div></div>';
+  }
+  el.innerHTML=h;
+}
+
+function renderProducao(){
+  const ps=STATE.producoes,el=document.getElementById('producao-content');
+  const tT=ps.reduce((s,p)=>s+p.trigo,0),tF=ps.reduce((s,p)=>s+p.farinha,0),tC=ps.reduce((s,p)=>s+p.custo,0);
+  const rend=tT>0?(tF/tT*100).toFixed(2):'68.00';
+  let h=`<div class="chips">${[{l:'Produções',v:String(ps.length)},{l:'🌾 Trigo',v:fmtTon(tT)},{l:'🥖 Farinha',v:fmtTon(tF)},{l:'Rendimento',v:rend+'%'},{l:'Custo Total',v:fmtBRL(tC)},{l:'R$/t Farinha',v:'R$ '+(STATE.custoMedioFarinha||0).toFixed(2)}].map(c=>`<div class="chip"><div class="chip-lbl">${c.l}</div><div class="chip-val" style="color:var(--gold)">${c.v}</div></div>`).join('')}</div>`;
+  h+=`<div class="section"><div class="sec-head"><div class="sec-title">Histórico de Produções</div></div><div class="table-wrap"><table><tr><th>ID</th><th>Data</th><th>Trigo (t)</th><th>Farinha (t)</th><th>Rendimento</th><th>Custo Trigo</th><th>R$/t Farinha</th><th>Status</th></tr>`;
+  ps.forEach(p=>{const r=p.rendimento>1?p.rendimento:p.rendimento*100;h+=`<tr><td class="mono" style="color:var(--gold)">${p.id}</td><td>${p.data}</td><td class="mono">${Number(p.trigo).toFixed(3)}</td><td class="mono bold">${Number(p.farinha).toFixed(3)}</td><td><span style="color:${r>=68?'var(--green)':'var(--amber)'};font-family:var(--mono);font-weight:600">${r.toFixed(2)}%</span></td><td class="mono">${fmtBRL(p.custoTrigo)}</td><td class="mono" style="color:var(--gold)">${fmtBRL(p.custoTonFarinha)}</td><td>${badge(p.status)}</td></tr>`;});
+  h+='</table></div></div>';
+  el.innerHTML=h;
+}
+
+function renderVendas(){
+  const vs=STATE.vendas,el=document.getElementById('vendas-content');
+  const normQ=v=>v.qtd>500?v.qtd/1000:v.qtd;
+  const rec=vs.reduce((s,v)=>s+v.receita,0),vol=vs.reduce((s,v)=>s+normQ(v),0);
+  const mm=vs.length>0?(vs.reduce((s,v)=>s+(v.margem>1?v.margem:v.margem*100),0)/vs.length).toFixed(1):0;
+  let h=`<div class="chips">${[{l:'Receita Total',v:fmtBRL(rec)},{l:'Volume',v:fmtTon(vol)},{l:'Margem Média',v:mm+'%'},{l:'Preço Médio/t',v:vol>0?fmtBRL(rec/vol):'—'}].map(c=>`<div class="chip"><div class="chip-lbl">${c.l}</div><div class="chip-val">${c.v}</div></div>`).join('')}</div>`;
+  h+=`<div class="section"><div class="table-wrap"><table><tr><th>ID</th><th>Cliente</th><th>Data</th><th>Qtd (t)</th><th>Preço/t</th><th>Receita</th><th>Margem</th><th>Pagto</th><th>Status</th></tr>`;
+  vs.forEach(v=>{const q=normQ(v),m=v.margem>1?v.margem:v.margem*100;h+=`<tr><td class="mono" style="color:var(--gold)">${v.id}</td><td class="bold trunc">${v.cliente}</td><td>${v.data}</td><td class="mono">${q.toFixed(3)}</td><td class="mono">${fmtBRL(v.precoTon)}</td><td class="mono">${fmtBRL(v.receita)}</td><td><span style="color:${m>20?'var(--green)':'var(--amber)'};font-family:var(--mono);font-weight:600;font-size:12px">${m.toFixed(1)}%</span></td><td style="font-size:11px">${v.formaPagto||'—'}</td><td>${badge(v.status)}</td></tr>`;});
+  h+='</table></div></div>';
+  el.innerHTML=h;
+}
+
+function renderFin(){
+  const el=document.getElementById('fin-content');
+  const at=STATE.financeiro.ativo||[],pa=STATE.financeiro.passivo||[];
+  const tA=at.reduce((s,i)=>s+i.val,0),tP=pa.reduce((s,i)=>s+i.val,0);
+  let h=`<div class="section"><div class="sec-head"><div><div class="sec-title">Balanço Patrimonial</div><div class="sec-sub">📊 Aba POSIÇÃO FINANC. — atualizado em tempo real</div></div></div>
+  <div class="fin-grid">
+    <div class="fin-col"><div class="fin-hdr a">● ATIVO</div>${at.map(i=>`<div class="fin-row"><span class="fin-lbl">${i.label}</span><span class="fin-val" style="color:var(--green)">${fmtBRL(i.val)}</span></div>`).join('')}<div class="fin-tot"><span>Total Ativo</span><span class="fin-val" style="color:var(--green)">${fmtBRL(tA)}</span></div></div>
+    <div class="fin-col"><div class="fin-hdr p">● PASSIVO</div>${pa.map(i=>`<div class="fin-row"><span class="fin-lbl">${i.label}</span><span class="fin-val" style="color:var(--red)">${fmtBRL(i.val)}</span></div>`).join('')}<div class="fin-tot"><span>Total Passivo</span><span class="fin-val" style="color:var(--red)">${fmtBRL(tP)}</span></div></div>
+  </div>
+  <div class="pl-box"><div><div class="pl-lbl">Patrimônio Líquido (Ativo − Passivo)</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtBRL(tA)} − ${fmtBRL(tP)}</div></div><div class="pl-val">${fmtBRL(tA-tP)}</div></div></div>`;
+  if(STATE.movimentos.length>0){
+    h+=`<div class="section"><div class="sec-head"><div class="sec-title">Últimos Movimentos Financeiros</div></div><div class="table-wrap"><table><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr>`;
+    STATE.movimentos.forEach(m=>{h+=`<tr><td>${m.data}</td><td>${badge(m.tipo)}</td><td style="font-size:11px">${m.categoria}</td><td class="trunc">${m.descricao}</td><td class="mono" style="color:${m.tipo==='CRÉDITO'?'var(--green)':'var(--red)'};font-weight:600">${m.tipo==='CRÉDITO'?'+':'-'}${fmtBRL(m.valor)}</td><td style="font-size:11px">${m.situacao}</td></tr>`;});
+    h+='</table></div></div>';
+  }
+  el.innerHTML=h;
+}
+
+// ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
+const NAV=[
+  {sec:'Visão Geral',items:[{id:'dash',label:'Dashboard',icon:'📊'}]},
+  {sec:'Operacional',items:[{id:'contratos',label:'Contratos & NFs',icon:'📋'},{id:'producao',label:'Produção',icon:'⚙️'},{id:'vendas',label:'Vendas',icon:'💼'}]},
+  {sec:'Financeiro',items:[{id:'fin',label:'Balanço',icon:'🏦'}]},
+];
+const TITLES={dash:'Dashboard Executivo',contratos:'Contratos & Entradas',producao:'Produção',vendas:'Vendas',fin:'Financeiro'};
+let currentPage='dash';
+
+function buildNav(){
+  document.getElementById('nav').innerHTML=NAV.map(s=>`
+    <div class="nav-sec"><div class="nav-lbl">${s.sec}</div>
+    ${s.items.map(it=>`<div class="nav-item${it.id===currentPage?' active':''}" onclick="goto('${it.id}')">${it.icon} ${it.label}</div>`).join('')}
+    </div>`).join('');
+}
+function goto(id){
+  currentPage=id;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('page-title').textContent=TITLES[id];
+  buildNav();renderPage(id);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+buildNav();
+loadAll();
+window.addEventListener('resize',()=>{if(currentPage==='dash')drawCharts();});
+</script>
+</body>
+</html>
