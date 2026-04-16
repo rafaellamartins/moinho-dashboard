@@ -352,29 +352,9 @@ function parsePosicao(rows) {
 
 function parseFinanceiro(rows) {
   const hi=findHeader(rows);
-  const all=rows.slice(hi+1)
+  return rows.slice(hi+1)
     .filter(r=>r[1]&&r[2]&&(r[2].toUpperCase()==='CRÉDITO'||r[2].toUpperCase()==='DÉBITO'))
     .map(r=>({data:fmtDate(r[1]),tipo:(r[2]||'').toUpperCase(),categoria:r[3]||'',descricao:r[4]||'',valor:toNum(r[5]),situacao:(r[7]||'').toUpperCase()}));
-
-  // Calcula totais globais
-  STATE.finTotais = {
-    totalCreditos: all.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
-    totalDebitos:  all.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
-    creditosPago:  all.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
-    debitosPago:   all.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
-    creditosPend:  all.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
-    debitosPend:   all.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
-    // Por categoria
-    porCategoria: all.reduce((acc,m)=>{
-      if(!acc[m.categoria]) acc[m.categoria]={tipo:m.tipo,total:0,pago:0,pend:0};
-      acc[m.categoria].total+=m.valor;
-      if(m.situacao==='PAGO') acc[m.categoria].pago+=m.valor;
-      else if(m.situacao==='PENDENTE') acc[m.categoria].pend+=m.valor;
-      return acc;
-    },{}),
-  };
-
-  return all.slice(0,25); // últimos movimentos para a tabela
 }
 
 function parseEstTrigo(rows) {
@@ -436,6 +416,23 @@ async function loadAll() {
     const vendas      = parseVendas(rV);
     const financeiro  = rPOS.length>4 ? parsePosicao(rPOS) : {ativo:[],passivo:[]};
     const movimentos  = parseFinanceiro(rF);
+
+    // ── TOTAIS DO FINANCEIRO ──────────────────────────────────────────────────
+    const _finTotais = {
+      totalCreditos: movimentos.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
+      totalDebitos:  movimentos.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
+      creditosPago:  movimentos.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
+      debitosPago:   movimentos.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
+      creditosPend:  movimentos.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+      debitosPend:   movimentos.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+      porCategoria:  movimentos.reduce((acc,m)=>{
+        if(!acc[m.categoria]) acc[m.categoria]={tipo:m.tipo,total:0,pago:0,pend:0};
+        acc[m.categoria].total+=m.valor;
+        if(m.situacao==='PAGO') acc[m.categoria].pago+=m.valor;
+        else if(m.situacao==='PENDENTE') acc[m.categoria].pend+=m.valor;
+        return acc;
+      },{}),
+    };
     const lotesTrigo  = parseEstTrigo(rET);
     const lotesFarinha= parseEstFarinha(rEF);
 
@@ -490,7 +487,7 @@ async function loadAll() {
       m:+(resultado/(totalKgVendido||1)*(0.95+Math.sin(i*.5)*.05)).toFixed(4),
     }));
 
-    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos,lotesTrigo,lotesFarinha,alertas,
+    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:movimentos.slice(0,25),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
       custoMedioTrigoKg,custoMedioFarinhaKg,evolution,custoChart,
       kpis:{caixa,trigoKg,farinhaKg,estoqueTotal:tA,resultado}};
 
