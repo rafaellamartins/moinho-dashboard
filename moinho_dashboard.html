@@ -352,10 +352,29 @@ function parsePosicao(rows) {
 
 function parseFinanceiro(rows) {
   const hi=findHeader(rows);
-  return rows.slice(hi+1)
+  const all=rows.slice(hi+1)
     .filter(r=>r[1]&&r[2]&&(r[2].toUpperCase()==='CRÉDITO'||r[2].toUpperCase()==='DÉBITO'))
-    .slice(0,25)
-    .map(r=>({data:fmtDate(r[1]),tipo:(r[2]||'').toUpperCase(),categoria:r[3]||'',descricao:r[4]||'',valor:toNum(r[5]),situacao:r[7]||''}));
+    .map(r=>({data:fmtDate(r[1]),tipo:(r[2]||'').toUpperCase(),categoria:r[3]||'',descricao:r[4]||'',valor:toNum(r[5]),situacao:(r[7]||'').toUpperCase()}));
+
+  // Calcula totais globais
+  STATE.finTotais = {
+    totalCreditos: all.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
+    totalDebitos:  all.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
+    creditosPago:  all.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
+    debitosPago:   all.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
+    creditosPend:  all.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+    debitosPend:   all.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+    // Por categoria
+    porCategoria: all.reduce((acc,m)=>{
+      if(!acc[m.categoria]) acc[m.categoria]={tipo:m.tipo,total:0,pago:0,pend:0};
+      acc[m.categoria].total+=m.valor;
+      if(m.situacao==='PAGO') acc[m.categoria].pago+=m.valor;
+      else if(m.situacao==='PENDENTE') acc[m.categoria].pend+=m.valor;
+      return acc;
+    },{}),
+  };
+
+  return all.slice(0,25); // últimos movimentos para a tabela
 }
 
 function parseEstTrigo(rows) {
@@ -389,7 +408,7 @@ function parseEstFarinha(rows) {
 }
 
 // ─── ESTADO ───────────────────────────────────────────────────────────────────
-let STATE={contratos:[],entradas:[],producoes:[],vendas:[],financeiro:{ativo:[],passivo:[]},movimentos:[],lotesTrigo:[],lotesFarinha:[],kpis:{},alertas:[],custoMedioTrigoKg:0,custoMedioFarinhaKg:0,evolution:[],custoChart:[]};
+let STATE={contratos:[],entradas:[],producoes:[],vendas:[],financeiro:{ativo:[],passivo:[]},movimentos:[],lotesTrigo:[],lotesFarinha:[],kpis:{},alertas:[],custoMedioTrigoKg:0,custoMedioFarinhaKg:0,evolution:[],custoChart:[],finTotais:{totalCreditos:0,totalDebitos:0,creditosPago:0,debitosPago:0,creditosPend:0,debitosPend:0,porCategoria:{}}};
 
 // ─── CARREGAMENTO ─────────────────────────────────────────────────────────────
 async function loadAll() {
@@ -775,7 +794,79 @@ function renderFin(){
   const el=document.getElementById('fin-content');
   const at=STATE.financeiro.ativo||[],pa=STATE.financeiro.passivo||[];
   const tA=at.reduce((s,i)=>s+i.val,0),tP=pa.reduce((s,i)=>s+i.val,0),pl=tA-tP;
-  let h=`<div class="section"><div class="sec-head"><div><div class="sec-title">Balanço Patrimonial</div><div class="sec-sub">📊 Aba POSIÇÃO FINANC. — atualizado em tempo real</div></div></div>
+  const ft=STATE.finTotais||{};
+  const tCred=ft.totalCreditos||0, tDeb=ft.totalDebitos||0;
+  const saldo=tCred-tDeb;
+
+  // ── RESUMO CRÉDITOS / DÉBITOS ─────────────────────────────────────────────
+  let h=`<div class="section" style="margin-bottom:16px">
+    <div class="sec-head"><div><div class="sec-title">💰 Resumo de Saldos — FINANCEIRO</div><div class="sec-sub">Total de créditos e débitos lançados</div></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+
+      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.25);border-radius:12px;padding:18px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">📈 Total Créditos</div>
+        <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green);margin-bottom:10px">${fmtBRL(tCred)}</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:var(--text3)">✓ Pago</span>
+            <span style="color:var(--green);font-family:var(--mono)">${fmtBRL(ft.creditosPago||0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:var(--text3)">⏳ Pendente</span>
+            <span style="color:var(--amber);font-family:var(--mono)">${fmtBRL(ft.creditosPend||0)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:18px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">📉 Total Débitos</div>
+        <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--red);margin-bottom:10px">${fmtBRL(tDeb)}</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:var(--text3)">✓ Pago</span>
+            <span style="color:var(--green);font-family:var(--mono)">${fmtBRL(ft.debitosPago||0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:var(--text3)">⏳ Pendente</span>
+            <span style="color:var(--red);font-family:var(--mono)">${fmtBRL(ft.debitosPend||0)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:18px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">⚖️ Saldo Líquido</div>
+        <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${saldo>=0?'var(--gold)':'var(--red)'};margin-bottom:10px">${fmtBRL(saldo)}</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:var(--text3)">Créditos − Débitos</span>
+          </div>
+          <div style="height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;margin-top:4px">
+            <div style="height:100%;width:${tCred>0?Math.min(100,Math.round(tDeb/tCred*100)):0}%;background:var(--red);border-radius:2px"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text3)">${tCred>0?Math.round(tDeb/tCred*100):0}% dos créditos comprometidos</div>
+        </div>
+      </div>
+
+    </div>
+
+    ${Object.keys(ft.porCategoria||{}).length>0?`
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+      <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Por Categoria</div>
+      <div class="table-wrap"><table>
+        <tr><th>Categoria</th><th>Tipo</th><th>Total</th><th>Pago</th><th>Pendente</th></tr>
+        ${Object.entries(ft.porCategoria).map(([cat,v])=>`<tr>
+          <td class="bold">${cat}</td>
+          <td>${badge(v.tipo)}</td>
+          <td class="mono">${fmtBRL(v.total)}</td>
+          <td class="mono" style="color:var(--green)">${fmtBRL(v.pago)}</td>
+          <td class="mono" style="color:${v.pend>0?'var(--red)':'var(--text3)'}">${fmtBRL(v.pend)}</td>
+        </tr>`).join('')}
+      </table></div>
+    </div>`:''}
+  </div>`;
+
+  // ── BALANÇO PATRIMONIAL ───────────────────────────────────────────────────
+  h+=`<div class="section"><div class="sec-head"><div><div class="sec-title">Balanço Patrimonial</div><div class="sec-sub">📊 Aba POSIÇÃO FINANC. — atualizado em tempo real</div></div></div>
   <div class="fin-grid">
     <div class="fin-col"><div class="fin-hdr a">● ATIVO</div>
       ${at.length>0?at.map(i=>`<div class="fin-row"><span class="fin-lbl">${i.label}</span><span class="fin-val" style="color:var(--green)">${fmtBRL(i.val)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>'}
@@ -790,6 +881,8 @@ function renderFin(){
     <div><div class="pl-lbl">Patrimônio Líquido (Ativo − Passivo)</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtBRL(tA)} − ${fmtBRL(tP)}</div></div>
     <div class="pl-val">${fmtBRL(pl)}</div>
   </div></div>`;
+
+  // ── ÚLTIMOS MOVIMENTOS ────────────────────────────────────────────────────
   if(STATE.movimentos.length>0){
     h+=`<div class="section"><div class="sec-head"><div class="sec-title">💰 Últimos Movimentos Financeiros</div></div><div class="table-wrap"><table>
     <tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr>`;
