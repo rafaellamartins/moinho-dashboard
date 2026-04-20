@@ -352,9 +352,15 @@ function parsePosicao(rows) {
 
 function parseFinanceiro(rows) {
   const hi=findHeader(rows);
+  const normSit = s => {
+    const u=(s||'').toUpperCase().trim();
+    if(u==='RECEBIDO') return 'PAGO';
+    if(u==='VENCIDO')  return 'PENDENTE';
+    return u||'';
+  };
   return rows.slice(hi+1)
     .filter(r=>r[1]&&r[2]&&(r[2].toUpperCase()==='CRÉDITO'||r[2].toUpperCase()==='DÉBITO'))
-    .map(r=>({data:fmtDate(r[1]),tipo:(r[2]||'').toUpperCase(),categoria:r[3]||'',descricao:r[4]||'',valor:toNum(r[5]),situacao:(r[7]||'').toUpperCase()}));
+    .map(r=>({data:fmtDate(r[1]),tipo:(r[2]||'').toUpperCase(),categoria:r[3]||'',descricao:r[4]||'',valor:toNum(r[5]),situacao:normSit(r[7])}));
 }
 
 function parseEstTrigo(rows) {
