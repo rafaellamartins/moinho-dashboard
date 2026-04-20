@@ -354,8 +354,8 @@ function parseFinanceiro(rows) {
   const hi=findHeader(rows);
   const normSit = s => {
     const u=(s||'').toUpperCase().trim();
-    if(u==='RECEBIDO') return 'PAGO';
-    if(u==='VENCIDO')  return 'PENDENTE';
+    if(u==='BAIXADO'||u==='RECEBIDO'||u==='BAIXADO') return 'BAIXADO';
+    if(u==='VENCIDO') return 'PENDENTE';
     return u||'';
   };
   return rows.slice(hi+1)
@@ -427,14 +427,14 @@ async function loadAll() {
     const _finTotais = {
       totalCreditos: movimentos.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
       totalDebitos:  movimentos.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
-      creditosPago:  movimentos.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
-      debitosPago:   movimentos.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PAGO').reduce((s,m)=>s+m.valor,0),
+      creditosPago:  movimentos.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
+      debitosPago:   movimentos.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
       creditosPend:  movimentos.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
       debitosPend:   movimentos.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
       porCategoria:  movimentos.reduce((acc,m)=>{
         if(!acc[m.categoria]) acc[m.categoria]={tipo:m.tipo,total:0,pago:0,pend:0};
         acc[m.categoria].total+=m.valor;
-        if(m.situacao==='PAGO') acc[m.categoria].pago+=m.valor;
+        if(m.situacao==='BAIXADO') acc[m.categoria].pago+=m.valor;
         else if(m.situacao==='PENDENTE') acc[m.categoria].pend+=m.valor;
         return acc;
       },{}),
@@ -811,7 +811,7 @@ function renderFin(){
         <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green);margin-bottom:10px">${fmtBRL(tCred)}</div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;justify-content:space-between;font-size:11px">
-            <span style="color:var(--text3)">✓ Pago</span>
+            <span style="color:var(--text3)">✓ Baixado</span>
             <span style="color:var(--green);font-family:var(--mono)">${fmtBRL(ft.creditosPago||0)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px">
@@ -826,7 +826,7 @@ function renderFin(){
         <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--red);margin-bottom:10px">${fmtBRL(tDeb)}</div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;justify-content:space-between;font-size:11px">
-            <span style="color:var(--text3)">✓ Pago</span>
+            <span style="color:var(--text3)">✓ Baixado</span>
             <span style="color:var(--green);font-family:var(--mono)">${fmtBRL(ft.debitosPago||0)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px">
