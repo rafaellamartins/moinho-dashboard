@@ -544,14 +544,13 @@ async function loadAll() {
       return {d, a:r, p:dp, pl:caixaAcum};
     });
 
-    const totalKgVendido=vendas.reduce((s,v)=>s+v.qtd,0);
-    const precoMedKg=totalKgVendido>0?receita/totalKgVendido:2.5;
-    const custoChart=Array.from({length:30},(_,i)=>({
-      d:`${String(i+1).padStart(2,'0')}/04`,
-      c:+(custoMedioTrigoKg*(0.97+Math.sin(i*.3)*.03)).toFixed(4),
-      v:+(precoMedKg*(0.97+Math.sin(i*.2)*.03)).toFixed(4),
-      m:+(resultado/(totalKgVendido||1)*(0.95+Math.sin(i*.5)*.05)).toFixed(4),
-    }));
+    // Custo vs Preço e Margem — dados reais por venda
+    const custoChart=vendas.map(v=>({
+      d:v.data||'',
+      c:+(custoMedioFarinhaKg||1.68),
+      v:+(v.precoKg||0),
+      m:+((v.receita-v.custoTotal)/(v.qtd||1)).toFixed(4),
+    })).filter(x=>x.d&&x.v>0);
 
     // Ordena movimentos por data decrescente (mais recente primeiro)
     const movsOrdenados = todasMovs.slice().sort((a,b)=>{
