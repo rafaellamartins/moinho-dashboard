@@ -529,7 +529,13 @@ async function loadAll() {
       m:+(resultado/(totalKgVendido||1)*(0.95+Math.sin(i*.5)*.05)).toFixed(4),
     }));
 
-    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:todasMovs.slice(0,25),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
+    // Ordena movimentos por data decrescente (mais recente primeiro)
+    const movsOrdenados = todasMovs.slice().sort((a,b)=>{
+      const da=a.data?a.data.split('/').reverse().join('-'):'';
+      const db=b.data?b.data.split('/').reverse().join('-'):'';
+      return db.localeCompare(da);
+    });
+    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:movsOrdenados.slice(0,50),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
       custoMedioTrigoKg,custoMedioFarinhaKg,evolution,custoChart,
       kpis:{caixa,trigoKg,farinhaKg,estoqueTotal:tA,resultado}};
 
