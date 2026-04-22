@@ -194,7 +194,7 @@ td{padding:10px 13px;color:var(--text2);font-size:13px}
 
 <script>
 // ─── GIDs CONFIGURADOS ────────────────────────────────────────────────────────
-const BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzpkKZaKByzkunCLx1dfMfdggaMGCKBppVAIaOs1gyFMwtcirqcx6mLQVmDEdT9bGsjAvF6KlNwnSH/pub?output=csv';
+const BASE = 'https://docs.google.com/spreadsheets/d/1vvmQrpy--0Ne6qHEUQOM3gvStHOMh2II2Ic-hf05WXQ/export?format=csv';
 const URLS = {
   contratos:  BASE + '&gid=1116372019',
   entradas:   BASE + '&gid=2141343312',
@@ -382,19 +382,46 @@ function parsePosicao(rows) {
   }
 }
 
-function parseFinanceiro(rows) {
-  const hi=findHeader(rows);
-  console.log('parseFinanceiro: hi='+hi+' rows[hi]='+JSON.stringify(rows[hi])+' rows[hi+1]='+JSON.stringify(rows[hi+1]));
-  const normSit = s => {
-    const u=(s||'').toUpperCase().trim();
-    if(u==='BAIXADO'||u==='RECEBIDO'||u==='BAIXADO') return 'BAIXADO';
-    if(u==='VENCIDO') return 'PENDENTE';
-    return u||'';
-  };
-  return rows.slice(hi+1)
-    .filter(r=>r[1]&&r[2]&&(r[2].toUpperCase()==='CRÉDITO'||r[2].toUpperCase()==='DÉBITO'))
-    .map(r=>({data:fmtDate(r[1]),tipo:(r[2]||'').toUpperCase(),categoria:r[3]||'',descricao:r[4]||'',valor:toNum(r[5]),situacao:normSit(r[7])}));
+// Normaliza situação
+function normSit(s) {
+  const u=(s||'').toUpperCase().trim();
+  if(u==='BAIXADO'||u==='RECEBIDO'||u==='PAGO') return 'BAIXADO';
+  if(u==='VENCIDO') return 'PENDENTE';
+  return u||'';
 }
+
+// Parser da aba RECEITA — tipo sempre CRÉDITO
+function parseReceita(rows) {
+  const hi=findHeader(rows);
+  return rows.slice(hi+1)
+    .filter(r=>r[1]&&r[5]&&toNum(r[5])>0)
+    .map(r=>({
+      data:fmtDate(r[1]),
+      tipo:'CRÉDITO',
+      categoria:String(r[3]||'').trim(),
+      descricao:String(r[4]||'').trim(),
+      valor:toNum(r[5]),
+      situacao:normSit(r[7])
+    }));
+}
+
+// Parser da aba DESPESA — tipo sempre DÉBITO
+function parseDespesa(rows) {
+  const hi=findHeader(rows);
+  return rows.slice(hi+1)
+    .filter(r=>r[1]&&r[5]&&toNum(r[5])>0)
+    .map(r=>({
+      data:fmtDate(r[1]),
+      tipo:'DÉBITO',
+      categoria:String(r[3]||'').trim(),
+      descricao:String(r[4]||'').trim(),
+      valor:toNum(r[5]),
+      situacao:normSit(r[7])
+    }));
+}
+
+// Mantém parseFinanceiro para compatibilidade (não usado)
+function parseFinanceiro(rows) { return []; }
 
 function parseEstTrigo(rows) {
   const hi=findHeader(rows);
@@ -454,8 +481,8 @@ async function loadAll() {
     const producoes   = parseProducao(rP);
     const vendas      = parseVendas(rV);
     const financeiro  = rPOS.length>4 ? parsePosicao(rPOS) : {ativo:[],passivo:[]};
-    const despesas  = parseFinanceiro(rD);   // aba DESPESA
-    const receitas  = parseFinanceiro(rR);   // aba RECEITA
+    const receitas  = parseReceita(rR);    // aba RECEITA — só CRÉDITO
+    const despesas  = parseDespesa(rD);    // aba DESPESA — só DÉBITO
     const movimentos = [...receitas, ...despesas]; // unifica para exibição
 
     // ── TOTAIS DO FINANCEIRO ──────────────────────────────────────────────────
