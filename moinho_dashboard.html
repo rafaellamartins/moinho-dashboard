@@ -834,14 +834,35 @@ function renderFin(){
   const at=STATE.financeiro.ativo||[],pa=STATE.financeiro.passivo||[];
   const tA=at.reduce((s,i)=>s+i.val,0),tP=pa.reduce((s,i)=>s+i.val,0);
   const ft=STATE.finTotais||{};
-  // Usa valores direto da planilha POSIÇÃO_FINANC
   const caixaObj=STATE.financeiro.caixa;
   const plObj=STATE.financeiro.pl;
   const caixa=caixaObj?caixaObj.val:(ft.creditosPago||0)-(ft.debitosPago||0);
   const pl=plObj?plObj.val:tA-tP;
+  const totalRec=ft.creditosPago||0;
+  const totalPago=ft.debitosPago||0;
+  const saldoCaixa=totalRec-totalPago;
 
-  // 1. BALANÇO PATRIMONIAL
+  // 1. CAIXA / BANCOS (topo)
   let h=`<div class="section" style="margin-bottom:16px">
+    <div class="sec-head"><div><div class="sec-title">🏦 Caixa / Bancos</div><div class="sec-sub">Receitas BAIXADAS − Despesas BAIXADAS</div></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.25);border-radius:12px;padding:18px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">📈 Total Recebido</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">${fmtBRL(totalRec)}</div>
+      </div>
+      <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:18px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">📉 Total Pago</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--red)">${fmtBRL(totalPago)}</div>
+      </div>
+      <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:18px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">💰 Saldo em Caixa</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${saldoCaixa>=0?'var(--gold)':'var(--red)'};">${fmtBRL(saldoCaixa)}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // 2. BALANÇO PATRIMONIAL
+  h+=`<div class="section" style="margin-bottom:16px">
     <div class="sec-head"><div><div class="sec-title">Balanço Patrimonial</div><div class="sec-sub">📊 Aba POSIÇÃO FINANC. — atualizado em tempo real</div></div></div>
     <div class="fin-grid">
       <div class="fin-col"><div class="fin-hdr a">● ATIVO</div>
@@ -855,34 +876,9 @@ function renderFin(){
     </div>
     <div class="pl-box">
       <div><div class="pl-lbl">Patrimônio Líquido (Ativo − Passivo)</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtBRL(tA)} − ${fmtBRL(tP)}</div></div>
-      <div class="pl-val" id="pl-val-fin">${fmtBRL(pl)}</div>
+      <div class="pl-val" style="color:${pl>=0?'var(--gold)':'var(--red)'};">${fmtBRL(pl)}</div>
     </div>
   </div>`;
-
-  // 2. CAIXA / BANCOS
-  h+=`<div class="section" style="margin-bottom:16px">
-    <div class="sec-head"><div><div class="sec-title">🏦 Caixa / Bancos</div><div class="sec-sub">Receitas BAIXADAS − Despesas BAIXADAS</div></div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
-      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.25);border-radius:12px;padding:18px">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">📈 Total Recebido</div>
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">${fmtBRL(ft.creditosPago||0)}</div>
-      </div>
-      <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:18px">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">📉 Total Pago</div>
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--red)">${fmtBRL(ft.debitosPago||0)}</div>
-      </div>
-      <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:18px">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">💰 Saldo em Caixa</div>
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono)" id="caixa-val"></div>
-      </div>
-    </div>
-  </div>`;
-
-  // Seta caixa após render
-  setTimeout(()=>{
-    const el=document.getElementById('caixa-val');
-    if(el){el.textContent=fmtBRL(caixa);el.style.color=caixa>=0?'var(--gold)':'var(--red)';}
-  },50);
 
   // 3. RESUMO POR CATEGORIA
   if(Object.keys(ft.porCategoria||{}).length>0){
@@ -895,7 +891,7 @@ function renderFin(){
           <td>${badge(v.tipo)}</td>
           <td class="mono">${fmtBRL(v.total)}</td>
           <td class="mono" style="color:var(--green)">${fmtBRL(v.pago)}</td>
-          <td class="mono" style="color:${v.pend>0?'var(--red)':'var(--text3)'}">${fmtBRL(v.pend)}</td>
+          <td class="mono" style="color:${v.pend>0?'var(--red)':'var(--text3)'};">${fmtBRL(v.pend)}</td>
         </tr>`).join('')}
       </table></div>
     </div>`;
