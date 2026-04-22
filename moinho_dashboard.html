@@ -340,16 +340,49 @@ function parsePosicao(rows) {
   for(let i=0;i<rows.length;i++){
     if(rows[i].some(c=>c&&String(c).toUpperCase()==='ATIVO')){hi=i;break;}
   }
-  const skipA = s=>!s||['TOTAL','PATRIMÔN','ÍNDICE','LIQUIDEZ','ENDIVID','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
+  const skipA = s=>!s||['TOTAL','PATRIMÔN','ÍNDICE','LIQUIDEZ','ENDIVID','VALOR (R$)','CAIXA'].some(x=>s.toUpperCase().includes(x));
   const skipP = s=>!s||['TOTAL','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
   const ativo=[],passivo=[];
-  // Lê até 13 linhas para cobrir 5 ativo + 11 passivo
+
+  // Lê 13 linhas de dados (L6-L16 na planilha = posições hi+1 a hi+13)
   rows.slice(hi+1,hi+14).forEach(r=>{
-    const la=String(r[1]||'').trim(), lp=String(r[4]||'').trim();
-    if(la&&!skipA(la)) ativo.push({label:la.toUpperCase(),val:toNum(r[2])});
-    if(lp&&!skipP(lp)) passivo.push({label:lp.toUpperCase(),val:toNum(r[5])});
+    const la=String(r[1]||'').trim();
+    const lp=String(r[4]||'').trim();
+    const va=toNum(r[2]);
+    const vp=toNum(r[5]);
+    if(la&&!skipA(la)) ativo.push({label:la.toUpperCase(),val:va});
+    if(lp&&!skipP(lp)) passivo.push({label:lp.toUpperCase(),val:vp});
   });
-  return{ativo:ativo.filter(i=>i.label),passivo:passivo.filter(i=>i.label)};
+
+  // Busca CAIXA/BANCOS (L19 na planilha = hi+15 aproximadamente)
+  let caixa=null;
+  for(let i=hi+13;i<Math.min(hi+20,rows.length);i++){
+    const b=String(rows[i][1]||'').toUpperCase();
+    if(b.includes('CAIXA')){
+      // valor pode estar em col E ou F (índice 4 ou 5)
+      const v=toNum(rows[i][5])||toNum(rows[i][4])||toNum(rows[i][2]);
+      caixa={label:'CAIXA / BANCOS',val:v};
+      break;
+    }
+  }
+
+  // Busca PATRIMÔNIO LÍQUIDO
+  let pl=null;
+  for(let i=hi+13;i<Math.min(hi+22,rows.length);i++){
+    const b=String(rows[i][1]||'').toUpperCase();
+    if(b.includes('PATRIMÔN')||b.includes('PATRIM')){
+      const v=toNum(rows[i][5])||toNum(rows[i][4]);
+      pl={label:'PATRIMÔNIO LÍQUIDO',val:v};
+      break;
+    }
+  }
+
+  return{
+    ativo:ativo.filter(i=>i.label),
+    passivo:passivo.filter(i=>i.label),
+    caixa,
+    pl
+  };
 }
 
 function parseFinanceiro(rows) {
@@ -396,7 +429,7 @@ function parseEstFarinha(rows) {
 }
 
 // ─── ESTADO ───────────────────────────────────────────────────────────────────
-let STATE={contratos:[],entradas:[],producoes:[],vendas:[],financeiro:{ativo:[],passivo:[]},movimentos:[],lotesTrigo:[],lotesFarinha:[],kpis:{},alertas:[],custoMedioTrigoKg:0,custoMedioFarinhaKg:0,evolution:[],custoChart:[],finTotais:{totalCreditos:0,totalDebitos:0,creditosPago:0,debitosPago:0,creditosPend:0,debitosPend:0,porCategoria:{}}};
+let STATE={contratos:[],entradas:[],producoes:[],vendas:[],financeiro:{ativo:[],passivo:[],caixa:null,pl:null},movimentos:[],lotesTrigo:[],lotesFarinha:[],kpis:{},alertas:[],custoMedioTrigoKg:0,custoMedioFarinhaKg:0,evolution:[],custoChart:[],finTotais:{totalCreditos:0,totalDebitos:0,creditosPago:0,debitosPago:0,creditosPend:0,debitosPend:0,porCategoria:{}}};
 
 // ─── CARREGAMENTO ─────────────────────────────────────────────────────────────
 async function loadAll() {
@@ -453,7 +486,7 @@ async function loadAll() {
 
     // ── KPIs ─────────────────────────────────────────────────────────────────
     const tA=financeiro.ativo.reduce((s,i)=>s+i.val,0);
-    const caixaItem=financeiro.ativo.find(i=>i.label.toLowerCase().includes('caixa'));
+    const caixaItem=financeiro.caixa||null;
 
     // Trigo em kg (direto dos lotes ou soma entregas)
     const trigoKg=lotesTrigo.length>0
@@ -802,9 +835,13 @@ function renderVendas(){
 function renderFin(){
   const el=document.getElementById('fin-content');
   const at=STATE.financeiro.ativo||[],pa=STATE.financeiro.passivo||[];
-  const tA=at.reduce((s,i)=>s+i.val,0),tP=pa.reduce((s,i)=>s+i.val,0),pl=tA-tP;
+  const tA=at.reduce((s,i)=>s+i.val,0),tP=pa.reduce((s,i)=>s+i.val,0);
   const ft=STATE.finTotais||{};
-  const caixa=(ft.creditosPago||0)-(ft.debitosPago||0);
+  // Usa valores direto da planilha POSIÇÃO_FINANC
+  const caixaObj=STATE.financeiro.caixa;
+  const plObj=STATE.financeiro.pl;
+  const caixa=caixaObj?caixaObj.val:(ft.creditosPago||0)-(ft.debitosPago||0);
+  const pl=plObj?plObj.val:tA-tP;
 
   // 1. BALANÇO PATRIMONIAL
   let h=`<div class="section" style="margin-bottom:16px">
@@ -821,7 +858,7 @@ function renderFin(){
     </div>
     <div class="pl-box">
       <div><div class="pl-lbl">Patrimônio Líquido (Ativo − Passivo)</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtBRL(tA)} − ${fmtBRL(tP)}</div></div>
-      <div class="pl-val">${fmtBRL(pl)}</div>
+      <div class="pl-val" style="color:${pl>=0?'var(--gold)':\'var(--red)'}">${fmtBRL(pl)}</div>
     </div>
   </div>`;
 
