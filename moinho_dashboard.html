@@ -340,13 +340,14 @@ function parsePosicao(rows) {
   for(let i=0;i<rows.length;i++){
     if(rows[i].some(c=>c&&String(c).toUpperCase()==='ATIVO')){hi=i;break;}
   }
+  const skipA = s=>!s||['TOTAL','PATRIMÔN','ÍNDICE','LIQUIDEZ','ENDIVID','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
+  const skipP = s=>!s||['TOTAL','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
   const ativo=[],passivo=[];
-  rows.slice(hi+1,hi+10).forEach(r=>{
+  // Lê até 13 linhas para cobrir 5 ativo + 11 passivo
+  rows.slice(hi+1,hi+14).forEach(r=>{
     const la=String(r[1]||'').trim(), lp=String(r[4]||'').trim();
-    if(la&&!la.toUpperCase().includes('TOTAL')&&!la.toUpperCase().includes('PATRIMÔN')&&!la.toUpperCase().includes('ÍNDICE')&&!la.toUpperCase().includes('LIQUIDEZ')&&!la.toUpperCase().includes('ENDIVID'))
-      ativo.push({label:la,val:toNum(r[2])});
-    if(lp&&!lp.toUpperCase().includes('TOTAL'))
-      passivo.push({label:lp,val:toNum(r[5])});
+    if(la&&!skipA(la)) ativo.push({label:la.toUpperCase(),val:toNum(r[2])});
+    if(lp&&!skipP(lp)) passivo.push({label:lp.toUpperCase(),val:toNum(r[5])});
   });
   return{ativo:ativo.filter(i=>i.label),passivo:passivo.filter(i=>i.label)};
 }
