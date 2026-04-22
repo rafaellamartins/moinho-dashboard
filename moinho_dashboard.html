@@ -504,7 +504,8 @@ async function loadAll() {
     const receita=vendas.reduce((s,v)=>s+v.receita,0);
     const custo=vendas.reduce((s,v)=>s+v.custoTotal,0);
     const resultado=Math.max(receita-custo,0);
-    const caixa=caixaItem?caixaItem.val:0;
+    // Caixa = receitas BAIXADAS - despesas BAIXADAS
+    const caixa=_finTotais.creditosPago-_finTotais.debitosPago;
 
     // ── Alertas (limiar em kg: 50.000 kg = 50t) ──────────────────────────────
     const alertas=[];
