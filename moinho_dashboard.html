@@ -393,17 +393,8 @@ function normSit(s) {
 // Parser da aba RECEITA — tipo sempre CRÉDITO
 function parseReceita(rows) {
   const hi=findHeader(rows);
-  const sitValidas=new Set(['BAIXADO','PENDENTE','VENCIDO','RECEBIDO','']);
   return rows.slice(hi+1)
-    .filter(r=>{
-      if(!r[1]||!r[5]) return false;
-      const v=toNum(r[5]);
-      if(v<=0) return false;
-      // Ignora linhas de resumo (col A com texto longo como "Total" ou "Saldo")
-      const col0=String(r[0]||'').toUpperCase();
-      if(col0.includes('TOTAL')||col0.includes('SALDO')||col0.includes('RESUMO')) return false;
-      return true;
-    })
+    .filter(r=>r[1]&&r[5]&&toNum(r[5])>0)
     .map(r=>({
       data:fmtDate(r[1]),
       tipo:'CRÉDITO',
@@ -418,14 +409,7 @@ function parseReceita(rows) {
 function parseDespesa(rows) {
   const hi=findHeader(rows);
   return rows.slice(hi+1)
-    .filter(r=>{
-      if(!r[1]||!r[5]) return false;
-      const v=toNum(r[5]);
-      if(v<=0) return false;
-      const col0=String(r[0]||'').toUpperCase();
-      if(col0.includes('TOTAL')||col0.includes('SALDO')||col0.includes('RESUMO')) return false;
-      return true;
-    })
+    .filter(r=>r[1]&&r[5]&&toNum(r[5])>0)
     .map(r=>({
       data:fmtDate(r[1]),
       tipo:'DÉBITO',
@@ -549,8 +533,7 @@ async function loadAll() {
     const custo=vendas.reduce((s,v)=>s+v.custoTotal,0);
     const resultado=Math.max(receita-custo,0);
     // Caixa = receitas BAIXADAS - despesas BAIXADAS
-    // Caixa = receitas BAIXADAS - despesas BAIXADAS
-    const caixa=(_finTotais.creditosPago||0)-(_finTotais.debitosPago||0);
+    const caixa=_finTotais.creditosPago-_finTotais.debitosPago;
 
     // ── Alertas (limiar em kg: 50.000 kg = 50t) ──────────────────────────────
     const alertas=[];
@@ -914,7 +897,8 @@ function renderFin(){
   const pl=plObj?plObj.val:tA-tP;
   const totalRec=ft.creditosPago||0;
   const totalPago=ft.debitosPago||0;
-  const saldoCaixa=totalRec-totalPago;
+  // Usa valor direto da planilha se disponível
+  const saldoCaixa=STATE.financeiro.caixa?STATE.financeiro.caixa.val:totalRec-totalPago;
 
   // 1. CAIXA / BANCOS (topo)
   let h=`<div class="section" style="margin-bottom:16px">
