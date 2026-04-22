@@ -169,7 +169,7 @@ td{padding:10px 13px;color:var(--text2);font-size:13px}
         <div class="alerts" id="alerts-box"></div>
         <div class="kpi-grid" id="kpi-grid"></div>
         <div class="section" style="margin-bottom:16px">
-          <div class="sec-head"><div><div class="sec-title">Evolução Patrimonial</div><div class="sec-sub">Ativo vs Passivo vs Patrimônio Líquido</div></div></div>
+          <div class="sec-head"><div><div class="sec-title">Evolução Patrimonial</div><div class="sec-sub">🟢 Receita do dia &nbsp;|&nbsp; 🟡 Caixa acumulado &nbsp;|&nbsp; 🔴 Despesa do dia</div></div></div>
           <canvas id="chart-evo" height="220"></canvas>
         </div>
         <div class="chart-grid">
@@ -516,10 +516,33 @@ async function loadAll() {
       alertas.push({tipo:'ATENCAO',icon:'⚠️',msg:`${semEnt.length} contrato(s) sem entrega`,det:semEnt.map(c=>c.id).join(', ')});
     alertas.push({tipo:'INFO',icon:'📊',msg:'Dados sincronizados com Google Sheets',det:`${contratos.length} contratos · ${entradas.length} NFs · ${producoes.length} produções · ${vendas.length} vendas`});
 
-    // ── Gráficos ──────────────────────────────────────────────────────────────
-    const evolution=tA>0
-      ? Array.from({length:30},(_,i)=>({d:`${String(i+1).padStart(2,'0')}/04`,a:tA*(0.88+i*0.004),p:(tA-resultado)*(0.85+i*0.005),pl:resultado*(0.82+i*0.006)+caixa*(0.5+i*0.01)}))
-      : Array.from({length:30},(_,i)=>({d:`${String(i+1).padStart(2,'0')}/04`,a:800000*(0.7+i*.01),p:200000*(0.8+i*.005),pl:600000*(0.6+i*.013)}));
+    // ── Gráfico Evolução Patrimonial — dados reais por data ─────────────────
+    // Agrupa receitas e despesas BAIXADAS por data dos movimentos
+    const recPorData={}, despPorData={};
+    todasMovs.forEach(m=>{
+      if(!m.data||!m.valor) return;
+      const d=m.data; // já em DD/MM/YYYY
+      if(m.tipo==='CRÉDITO'&&m.situacao==='BAIXADO'){
+        recPorData[d]=(recPorData[d]||0)+m.valor;
+      } else if(m.tipo==='DÉBITO'&&m.situacao==='BAIXADO'){
+        despPorData[d]=(despPorData[d]||0)+m.valor;
+      }
+    });
+    // Todas as datas únicas ordenadas
+    const todasDatas=[...new Set([...Object.keys(recPorData),...Object.keys(despPorData)])]
+      .sort((a,b)=>{
+        const pa=a.split('/').reverse().join('-');
+        const pb=b.split('/').reverse().join('-');
+        return pa.localeCompare(pb);
+      });
+    // Calcula caixa acumulado por data
+    let caixaAcum=0;
+    const evolution=todasDatas.map(d=>{
+      const r=recPorData[d]||0;
+      const dp=despPorData[d]||0;
+      caixaAcum+=r-dp;
+      return {d, a:r, p:dp, pl:caixaAcum};
+    });
 
     const totalKgVendido=vendas.reduce((s,v)=>s+v.qtd,0);
     const precoMedKg=totalKgVendido>0?receita/totalKgVendido:2.5;
