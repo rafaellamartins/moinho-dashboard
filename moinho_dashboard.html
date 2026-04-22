@@ -341,8 +341,8 @@ function parsePosicao(rows) {
     for(let i=0;i<rows.length;i++){
       if(rows[i]&&rows[i].some(c=>c&&String(c).toUpperCase()==='ATIVO')){hi=i;break;}
     }
-    const skipA = s=>!s||['TOTAL','PATRIMÔN','ÍNDICE','LIQUIDEZ','ENDIVID','VALOR (R$)','CAIXA'].some(x=>s.toUpperCase().includes(x));
-    const skipP = s=>!s||['TOTAL','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
+    const skipA = s=>!s||['TOTAL ATIVO','TOTAL PASSIVO','PATRIMÔN','ÍNDICE','LIQUIDEZ','ENDIVID','VALOR (R$)','CAIXA'].some(x=>s.toUpperCase().includes(x));
+    const skipP = s=>!s||['TOTAL PASSIVO','TOTAL ATIVO','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
     const ativo=[],passivo=[];
 
     rows.slice(hi+1,hi+14).forEach(r=>{
@@ -369,7 +369,7 @@ function parsePosicao(rows) {
       if(!rows[i]) continue;
       const b=String(rows[i][1]||'').toUpperCase();
       if(b.includes('PATRIM')){
-        const v=toNum(rows[i][5])||toNum(rows[i][4]);
+        const v=toNum(rows[i][4])||toNum(rows[i][5])||toNum(rows[i][3])||toNum(rows[i][2]);
         pl={label:'PATRIMÔNIO LÍQUIDO',val:v};
         break;
       }
