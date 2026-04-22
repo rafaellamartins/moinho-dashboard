@@ -540,10 +540,10 @@ async function loadAll() {
 
   }catch(e){
     clearInterval(tick);
+    console.error('ERRO LOADALL:',e);
     document.getElementById('loading').style.display='none';
-    document.getElementById('error-msg').textContent=e.message;
+    document.getElementById('error-msg').textContent='Erro: '+e.message+' | '+e.stack;
     document.getElementById('error-screen').style.display='flex';
-    console.error(e);
   }
   btn.disabled=false; btn.textContent='↺ Atualizar';
 }
