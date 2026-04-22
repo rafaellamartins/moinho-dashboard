@@ -393,8 +393,17 @@ function normSit(s) {
 // Parser da aba RECEITA — tipo sempre CRÉDITO
 function parseReceita(rows) {
   const hi=findHeader(rows);
+  const sitValidas=new Set(['BAIXADO','PENDENTE','VENCIDO','RECEBIDO','']);
   return rows.slice(hi+1)
-    .filter(r=>r[1]&&r[5]&&toNum(r[5])>0)
+    .filter(r=>{
+      if(!r[1]||!r[5]) return false;
+      const v=toNum(r[5]);
+      if(v<=0) return false;
+      // Ignora linhas de resumo (col A com texto longo como "Total" ou "Saldo")
+      const col0=String(r[0]||'').toUpperCase();
+      if(col0.includes('TOTAL')||col0.includes('SALDO')||col0.includes('RESUMO')) return false;
+      return true;
+    })
     .map(r=>({
       data:fmtDate(r[1]),
       tipo:'CRÉDITO',
@@ -409,7 +418,14 @@ function parseReceita(rows) {
 function parseDespesa(rows) {
   const hi=findHeader(rows);
   return rows.slice(hi+1)
-    .filter(r=>r[1]&&r[5]&&toNum(r[5])>0)
+    .filter(r=>{
+      if(!r[1]||!r[5]) return false;
+      const v=toNum(r[5]);
+      if(v<=0) return false;
+      const col0=String(r[0]||'').toUpperCase();
+      if(col0.includes('TOTAL')||col0.includes('SALDO')||col0.includes('RESUMO')) return false;
+      return true;
+    })
     .map(r=>({
       data:fmtDate(r[1]),
       tipo:'DÉBITO',
@@ -533,7 +549,8 @@ async function loadAll() {
     const custo=vendas.reduce((s,v)=>s+v.custoTotal,0);
     const resultado=Math.max(receita-custo,0);
     // Caixa = receitas BAIXADAS - despesas BAIXADAS
-    const caixa=_finTotais.creditosPago-_finTotais.debitosPago;
+    // Caixa = receitas BAIXADAS - despesas BAIXADAS
+    const caixa=(_finTotais.creditosPago||0)-(_finTotais.debitosPago||0);
 
     // ── Alertas (limiar em kg: 50.000 kg = 50t) ──────────────────────────────
     const alertas=[];
