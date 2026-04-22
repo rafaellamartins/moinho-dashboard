@@ -196,14 +196,15 @@ td{padding:10px 13px;color:var(--text2);font-size:13px}
 // ─── GIDs CONFIGURADOS ────────────────────────────────────────────────────────
 const BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzpkKZaKByzkunCLx1dfMfdggaMGCKBppVAIaOs1gyFMwtcirqcx6mLQVmDEdT9bGsjAvF6KlNwnSH/pub?output=csv';
 const URLS = {
-  contratos:  BASE + '&gid=1624893446',
-  entradas:   BASE + '&gid=2016320017',
-  producao:   BASE + '&gid=1990756777',
-  vendas:     BASE + '&gid=1257137497',
-  posicao:    BASE + '&gid=1124281770',
-  financeiro: BASE + '&gid=557648519',
-  estTrigo:   BASE + '&gid=1854895860',
-  estFarinha: BASE + '&gid=1878142639',
+  contratos:  BASE + '&gid=1467851334',
+  entradas:   BASE + '&gid=1467851334',
+  producao:   BASE + '&gid=1740995013',
+  vendas:     BASE + '&gid=175226409',
+  posicao:    BASE + '&gid=483963881',
+  despesa:    BASE + '&gid=1810141307',
+  receita:    BASE + '&gid=744737687',
+  estTrigo:   BASE + '&gid=1511598208',
+  estFarinha: BASE + '&gid=999375886',
 };
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -409,10 +410,10 @@ async function loadAll() {
   const tick=setInterval(()=>{document.getElementById('loading-sub').textContent='Lendo '+steps[si++%steps.length]+'...';},500);
 
   try{
-    const [rC,rE,rP,rV,rPOS,rF,rET,rEF]=await Promise.all([
+    const [rC,rE,rP,rV,rPOS,rD,rR,rET,rEF]=await Promise.all([
       fetchCSV(URLS.contratos),fetchCSV(URLS.entradas),fetchCSV(URLS.producao),
-      fetchCSV(URLS.vendas),fetchCSV(URLS.posicao),fetchCSV(URLS.financeiro),
-      fetchCSV(URLS.estTrigo),fetchCSV(URLS.estFarinha),
+      fetchCSV(URLS.vendas),fetchCSV(URLS.posicao),fetchCSV(URLS.despesa),
+      fetchCSV(URLS.receita),fetchCSV(URLS.estTrigo),fetchCSV(URLS.estFarinha),
     ]);
     clearInterval(tick);
 
@@ -421,17 +422,21 @@ async function loadAll() {
     const producoes   = parseProducao(rP);
     const vendas      = parseVendas(rV);
     const financeiro  = rPOS.length>4 ? parsePosicao(rPOS) : {ativo:[],passivo:[]};
-    const movimentos  = parseFinanceiro(rF);
+    const despesas  = parseFinanceiro(rD);   // aba DESPESA
+    const receitas  = parseFinanceiro(rR);   // aba RECEITA
+    const movimentos = [...receitas, ...despesas]; // unifica para exibição
 
     // ── TOTAIS DO FINANCEIRO ──────────────────────────────────────────────────
+    // Recalcula totais separados por aba
+    const todasMovs = [...receitas, ...despesas];
     const _finTotais = {
-      totalCreditos: movimentos.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
-      totalDebitos:  movimentos.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
-      creditosPago:  movimentos.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
-      debitosPago:   movimentos.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
-      creditosPend:  movimentos.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
-      debitosPend:   movimentos.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
-      porCategoria:  movimentos.reduce((acc,m)=>{
+      totalCreditos: todasMovs.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
+      totalDebitos:  todasMovs.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
+      creditosPago:  todasMovs.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
+      debitosPago:   todasMovs.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
+      creditosPend:  todasMovs.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+      debitosPend:   todasMovs.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+      porCategoria:  todasMovs.reduce((acc,m)=>{
         if(!acc[m.categoria]) acc[m.categoria]={tipo:m.tipo,total:0,pago:0,pend:0};
         acc[m.categoria].total+=m.valor;
         if(m.situacao==='BAIXADO') acc[m.categoria].pago+=m.valor;
@@ -493,7 +498,7 @@ async function loadAll() {
       m:+(resultado/(totalKgVendido||1)*(0.95+Math.sin(i*.5)*.05)).toFixed(4),
     }));
 
-    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:movimentos.slice(0,25),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
+    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:todasMovs.slice(0,25),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
       custoMedioTrigoKg,custoMedioFarinhaKg,evolution,custoChart,
       kpis:{caixa,trigoKg,farinhaKg,estoqueTotal:tA,resultado}};
 
