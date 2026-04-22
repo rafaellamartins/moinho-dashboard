@@ -336,53 +336,50 @@ function parseVendas(rows) {
 }
 
 function parsePosicao(rows) {
-  let hi=3;
-  for(let i=0;i<rows.length;i++){
-    if(rows[i].some(c=>c&&String(c).toUpperCase()==='ATIVO')){hi=i;break;}
-  }
-  const skipA = s=>!s||['TOTAL','PATRIMÔN','ÍNDICE','LIQUIDEZ','ENDIVID','VALOR (R$)','CAIXA'].some(x=>s.toUpperCase().includes(x));
-  const skipP = s=>!s||['TOTAL','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
-  const ativo=[],passivo=[];
-
-  // Lê 13 linhas de dados (L6-L16 na planilha = posições hi+1 a hi+13)
-  rows.slice(hi+1,hi+14).forEach(r=>{
-    const la=String(r[1]||'').trim();
-    const lp=String(r[4]||'').trim();
-    const va=toNum(r[2]);
-    const vp=toNum(r[5]);
-    if(la&&!skipA(la)) ativo.push({label:la.toUpperCase(),val:va});
-    if(lp&&!skipP(lp)) passivo.push({label:lp.toUpperCase(),val:vp});
-  });
-
-  // Busca CAIXA/BANCOS (L19 na planilha = hi+15 aproximadamente)
-  let caixa=null;
-  for(let i=hi+13;i<Math.min(hi+20,rows.length);i++){
-    const b=String(rows[i][1]||'').toUpperCase();
-    if(b.includes('CAIXA')){
-      // valor pode estar em col E ou F (índice 4 ou 5)
-      const v=toNum(rows[i][5])||toNum(rows[i][4])||toNum(rows[i][2]);
-      caixa={label:'CAIXA / BANCOS',val:v};
-      break;
+  try {
+    let hi=3;
+    for(let i=0;i<rows.length;i++){
+      if(rows[i]&&rows[i].some(c=>c&&String(c).toUpperCase()==='ATIVO')){hi=i;break;}
     }
-  }
+    const skipA = s=>!s||['TOTAL','PATRIMÔN','ÍNDICE','LIQUIDEZ','ENDIVID','VALOR (R$)','CAIXA'].some(x=>s.toUpperCase().includes(x));
+    const skipP = s=>!s||['TOTAL','VALOR (R$)'].some(x=>s.toUpperCase().includes(x));
+    const ativo=[],passivo=[];
 
-  // Busca PATRIMÔNIO LÍQUIDO
-  let pl=null;
-  for(let i=hi+13;i<Math.min(hi+22,rows.length);i++){
-    const b=String(rows[i][1]||'').toUpperCase();
-    if(b.includes('PATRIMÔN')||b.includes('PATRIM')){
-      const v=toNum(rows[i][5])||toNum(rows[i][4]);
-      pl={label:'PATRIMÔNIO LÍQUIDO',val:v};
-      break;
+    rows.slice(hi+1,hi+14).forEach(r=>{
+      if(!r) return;
+      const la=String(r[1]||'').trim();
+      const lp=String(r[4]||'').trim();
+      if(la&&!skipA(la)) ativo.push({label:la.toUpperCase(),val:toNum(r[2])});
+      if(lp&&!skipP(lp)) passivo.push({label:lp.toUpperCase(),val:toNum(r[5])});
+    });
+
+    let caixa=null;
+    for(let i=hi+13;i<Math.min(hi+22,rows.length);i++){
+      if(!rows[i]) continue;
+      const b=String(rows[i][1]||'').toUpperCase();
+      if(b.includes('CAIXA')){
+        const v=toNum(rows[i][5])||toNum(rows[i][4])||toNum(rows[i][2]);
+        caixa={label:'CAIXA / BANCOS',val:v};
+        break;
+      }
     }
-  }
 
-  return{
-    ativo:ativo.filter(i=>i.label),
-    passivo:passivo.filter(i=>i.label),
-    caixa,
-    pl
-  };
+    let pl=null;
+    for(let i=hi+13;i<Math.min(hi+24,rows.length);i++){
+      if(!rows[i]) continue;
+      const b=String(rows[i][1]||'').toUpperCase();
+      if(b.includes('PATRIM')){
+        const v=toNum(rows[i][5])||toNum(rows[i][4]);
+        pl={label:'PATRIMÔNIO LÍQUIDO',val:v};
+        break;
+      }
+    }
+
+    return{ativo:ativo.filter(i=>i.label),passivo:passivo.filter(i=>i.label),caixa,pl};
+  } catch(e) {
+    console.error('parsePosicao error:',e);
+    return{ativo:[],passivo:[],caixa:null,pl:null};
+  }
 }
 
 function parseFinanceiro(rows) {
@@ -858,7 +855,7 @@ function renderFin(){
     </div>
     <div class="pl-box">
       <div><div class="pl-lbl">Patrimônio Líquido (Ativo − Passivo)</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtBRL(tA)} − ${fmtBRL(tP)}</div></div>
-      <div class="pl-val" style="color:${pl>=0?'var(--gold)':\'var(--red)'}">${fmtBRL(pl)}</div>
+      <div class="pl-val" id="pl-val-fin">${fmtBRL(pl)}</div>
     </div>
   </div>`;
 
@@ -876,10 +873,16 @@ function renderFin(){
       </div>
       <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:18px">
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">💰 Saldo em Caixa</div>
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${caixa>=0?'var(--gold)':'var(--red)'}">` + '${fmtBRL(caixa)}' + `</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono)" id="caixa-val"></div>
       </div>
     </div>
   </div>`;
+
+  // Seta caixa após render
+  setTimeout(()=>{
+    const el=document.getElementById('caixa-val');
+    if(el){el.textContent=fmtBRL(caixa);el.style.color=caixa>=0?'var(--gold)':'var(--red)';}
+  },50);
 
   // 3. RESUMO POR CATEGORIA
   if(Object.keys(ft.porCategoria||{}).length>0){
