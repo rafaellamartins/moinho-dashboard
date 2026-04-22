@@ -384,6 +384,7 @@ function parsePosicao(rows) {
 
 function parseFinanceiro(rows) {
   const hi=findHeader(rows);
+  console.log('parseFinanceiro: hi='+hi+' rows[hi]='+JSON.stringify(rows[hi])+' rows[hi+1]='+JSON.stringify(rows[hi+1]));
   const normSit = s => {
     const u=(s||'').toUpperCase().trim();
     if(u==='BAIXADO'||u==='RECEBIDO'||u==='BAIXADO') return 'BAIXADO';
