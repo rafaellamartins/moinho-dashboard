@@ -731,15 +731,16 @@ function renderContratos(){
   if(STATE.entradas.length>0){
     const totEntQtd=STATE.entradas.reduce((s,e)=>s+e.qtd,0);
     const totEntVal=STATE.entradas.reduce((s,e)=>s+e.valorTotal,0);
-    h+=`<div class="section"><div class="sec-head"><div class="sec-title">📥 Entradas de NF (${STATE.entradas.length})</div></div><div class="table-wrap"><table>
-    <tr><th>ID</th><th>NF</th><th>Fornecedor</th><th>Data</th><th>Qtd (kg)</th><th>Preço/kg</th><th>Total</th><th>Status</th></tr>
-    <tr style="background:var(--gold);color:#1A1200;font-weight:700">
-      <td colspan="4" style="text-align:center;letter-spacing:.05em">TOTAIS</td>
-      <td class="mono" style="color:#1A1200">${Number(totEntQtd).toLocaleString('pt-BR',{minimumFractionDigits:3})}</td>
-      <td></td>
-      <td class="mono" style="color:#1A1200">${fmtBRL(totEntVal)}</td>
-      <td></td>
-    </tr>`;
+    h+=`<div class="section">
+    <div class="sec-head" style="flex-direction:column;align-items:flex-start;gap:4px">
+      <div><div class="sec-title">📥 Entradas de NF (${STATE.entradas.length})</div></div>
+      <div style="display:flex;gap:32px;font-size:12px;font-weight:600;color:var(--gold);padding:2px 0">
+        <span>📦 Total: <span class="mono">${Number(totEntQtd).toLocaleString('pt-BR',{minimumFractionDigits:3})} kg</span></span>
+        <span>💰 Valor: <span class="mono">${fmtBRL(totEntVal)}</span></span>
+      </div>
+    </div>
+    <div class="table-wrap"><table>
+    <tr><th>ID</th><th>NF</th><th>Fornecedor</th><th>Data</th><th>Qtd (kg)</th><th>Preço/kg</th><th>Total</th><th>Status</th></tr>`;
     STATE.entradas.forEach(e=>{h+=`<tr>
       <td class="mono" style="color:var(--gold)">${e.id}</td>
       <td class="mono">${e.nf}</td>
