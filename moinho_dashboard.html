@@ -161,6 +161,9 @@ td{padding:10px 13px;color:var(--text2);font-size:13px}
         <div class="tbadge">🌾 <b id="tb-trigo">—</b></div>
         <div class="tbadge">🥖 <b id="tb-farinha">—</b></div>
         <div class="tbadge">💰 <b id="tb-caixa">—</b></div>
+        <select id="sel-mes" onchange="filtrarMes()" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:6px">
+          <option value="">Todos os meses</option>
+        </select>
         <button class="btn-refresh" id="btn-refresh" onclick="loadAll()">↺ Atualizar</button>
       </div>
     </div>
@@ -188,6 +191,7 @@ td{padding:10px 13px;color:var(--text2);font-size:13px}
       <div class="page" id="page-producao"><div id="producao-content"></div></div>
       <div class="page" id="page-vendas"><div id="vendas-content"></div></div>
       <div class="page" id="page-fin"><div id="fin-content"></div></div>
+      <div class="page" id="page-mensal"><div id="mensal-content"></div></div>
     </div>
   </div>
 </div>
@@ -987,6 +991,139 @@ function renderFin(){
 }
 
 // ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
+
+// ─── FILTRO DE MÊS ────────────────────────────────────────────────────────────
+let mesFiltro = '';
+
+function filtrarMes() {
+  mesFiltro = document.getElementById('sel-mes').value;
+  render(currentPage);
+}
+
+function filtrarMovs(movs) {
+  if(!mesFiltro) return movs;
+  return movs.filter(m=>m.data&&m.data.substring(3,10)===mesFiltro);
+}
+
+function filtrarPorData(arr, campoData) {
+  if(!mesFiltro) return arr;
+  return arr.filter(item=>{
+    const d = item[campoData]||'';
+    return d.substring(3,10)===mesFiltro;
+  });
+}
+
+// ─── VISÃO MENSAL ─────────────────────────────────────────────────────────────
+function renderMensal() {
+  const el = document.getElementById('mensal-content');
+
+  // Agrupa movimentos por mês
+  const meses = {};
+  STATE.movimentos.forEach(m => {
+    const mes = m.data ? m.data.substring(3,10) : null;
+    if(!mes) return;
+    if(!meses[mes]) meses[mes] = {rec:0,recBaix:0,desp:0,despBaix:0,vendQtd:0,vendVal:0,prodQtd:0};
+    if(m.tipo==='CRÉDITO'){
+      meses[mes].rec += m.valor;
+      if(m.situacao==='BAIXADO') meses[mes].recBaix += m.valor;
+    } else {
+      meses[mes].desp += m.valor;
+      if(m.situacao==='BAIXADO') meses[mes].despBaix += m.valor;
+    }
+  });
+
+  // Vendas por mês
+  STATE.vendas.forEach(v => {
+    const mes = v.data ? v.data.substring(3,10) : null;
+    if(!mes||!meses[mes]) return;
+    meses[mes].vendQtd += v.qtd||0;
+    meses[mes].vendVal += v.receita||0;
+  });
+
+  // Produção por mês
+  STATE.producoes.forEach(p => {
+    const mes = p.data ? p.data.substring(3,10) : null;
+    if(!mes) return;
+    if(!meses[mes]) meses[mes] = {rec:0,recBaix:0,desp:0,despBaix:0,vendQtd:0,vendVal:0,prodQtd:0};
+    meses[mes].prodQtd += p.farinha||0;
+  });
+
+  const mesesOrdenados = Object.keys(meses).sort();
+
+  let h = `<div class="section">
+    <div class="sec-head"><div><div class="sec-title">📅 Visão Mensal Consolidada</div>
+    <div class="sec-sub">Receitas · Despesas · Vendas · Produção por mês</div></div></div>
+    <div class="table-wrap"><table>
+      <tr>
+        <th>Mês</th>
+        <th>Receitas Total</th>
+        <th>Receitas Baixadas</th>
+        <th>Despesas Total</th>
+        <th>Despesas Baixadas</th>
+        <th>Saldo Caixa</th>
+        <th>Vendas (kg)</th>
+        <th>Receita Vendas</th>
+        <th>Produção (kg)</th>
+      </tr>`;
+
+  let totRec=0,totRecB=0,totDesp=0,totDespB=0,totVQ=0,totVV=0,totPQ=0;
+
+  mesesOrdenados.forEach(mes => {
+    const d = meses[mes];
+    const saldo = d.recBaix - d.despBaix;
+    const corSaldo = saldo>=0 ? 'var(--gold)' : 'var(--red)';
+    totRec+=d.rec; totRecB+=d.recBaix; totDesp+=d.desp; totDespB+=d.despBaix;
+    totVQ+=d.vendQtd; totVV+=d.vendVal; totPQ+=d.prodQtd;
+    h+=`<tr>
+      <td style="font-weight:600;color:var(--gold)">${mes}</td>
+      <td class="mono">${fmtBRL(d.rec)}</td>
+      <td class="mono" style="color:var(--green)">${fmtBRL(d.recBaix)}</td>
+      <td class="mono">${fmtBRL(d.desp)}</td>
+      <td class="mono" style="color:var(--red)">${fmtBRL(d.despBaix)}</td>
+      <td class="mono" style="color:${corSaldo};font-weight:600">${fmtBRL(saldo)}</td>
+      <td class="mono">${fmtKg(d.vendQtd)}</td>
+      <td class="mono" style="color:var(--green)">${fmtBRL(d.vendVal)}</td>
+      <td class="mono">${fmtKg(d.prodQtd)}</td>
+    </tr>`;
+  });
+
+  // Linha de totais
+  const totSaldo = totRecB - totDespB;
+  h+=`<tr style="background:var(--gold);color:#1A1200;font-weight:700">
+    <td>TOTAL</td>
+    <td class="mono">${fmtBRL(totRec)}</td>
+    <td class="mono">${fmtBRL(totRecB)}</td>
+    <td class="mono">${fmtBRL(totDesp)}</td>
+    <td class="mono">${fmtBRL(totDespB)}</td>
+    <td class="mono">${fmtBRL(totSaldo)}</td>
+    <td class="mono">${fmtKg(totVQ)}</td>
+    <td class="mono">${fmtBRL(totVV)}</td>
+    <td class="mono">${fmtKg(totPQ)}</td>
+  </tr>`;
+
+  h += '</table></div></div>';
+
+  // Cards resumo do mês selecionado
+  if(mesFiltro && meses[mesFiltro]) {
+    const d = meses[mesFiltro];
+    const saldo = d.recBaix - d.despBaix;
+    h += `<div class="section">
+      <div class="sec-head"><div class="sec-title">📊 Detalhes — ${mesFiltro}</div></div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        ${[
+          {l:'Receitas Baixadas', v:fmtBRL(d.recBaix), c:'var(--green)', icon:'📈'},
+          {l:'Despesas Baixadas', v:fmtBRL(d.despBaix), c:'var(--red)', icon:'📉'},
+          {l:'Saldo em Caixa',   v:fmtBRL(saldo), c:saldo>=0?'var(--gold)':'var(--red)', icon:'💰'},
+          {l:'Produção (kg)',    v:fmtKg(d.prodQtd), c:'var(--amber)', icon:'⚙️'},
+        ].map(c=>`<div class="kpi-card"><div class="kpi-top"><span class="kpi-lbl">${c.l}</span><span>${c.icon}</span></div>
+          <div class="kpi-val" style="color:${c.c}">${c.v}</div></div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = h;
+}
+
 const NAV=[
   {sec:'Visão Geral',items:[{id:'dash',label:'Dashboard',icon:'📊'}]},
   {sec:'Operacional',items:[
@@ -995,9 +1132,9 @@ const NAV=[
     {id:'producao', label:'Produção',         icon:'⚙️'},
     {id:'vendas',   label:'Vendas',           icon:'💼'},
   ]},
-  {sec:'Financeiro',items:[{id:'fin',label:'Balanço',icon:'🏦'}]},
+  {sec:'Financeiro',items:[{id:'fin',label:'Balanço',icon:'🏦'},{id:'mensal',label:'Mensal',icon:'📅'}]},
 ];
-const TITLES={dash:'Dashboard Executivo',contratos:'Contratos & Entradas',estoque:'Controle de Estoque',producao:'Produção',vendas:'Vendas',fin:'Financeiro'};
+const TITLES={dash:'Dashboard Executivo',contratos:'Contratos & Entradas',estoque:'Controle de Estoque',producao:'Produção',vendas:'Vendas',fin:'Financeiro',mensal:'Visão Mensal'};
 let currentPage='dash';
 
 function buildNav(){
