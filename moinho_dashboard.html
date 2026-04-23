@@ -54,7 +54,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:h
 .error-title{font-size:18px;font-weight:700;color:var(--red);margin-bottom:10px}
 .error-msg{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px}
 .error-steps{text-align:left;font-size:12px;color:var(--text2);line-height:2;background:var(--surface2);border-radius:8px;padding:14px}
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:24px}
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;position:relative;overflow:hidden;transition:transform .15s}
 .kpi:hover{transform:translateY(-1px)}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--kc,var(--gold)),transparent)}
@@ -530,6 +530,10 @@ async function loadAll() {
     const custoMedioFarinhaKg=ultimaFarinha?ultimaFarinha.custoKg
       :(producoes.length>0&&producoes[0].custoKgFarinha>0?producoes[0].custoKgFarinha:1.258);
 
+    // Totais de Entradas NF
+    const entradasQtdKg   = entradas.reduce((s,e)=>s+e.qtd,0);
+    const entradasValTotal = entradas.reduce((s,e)=>s+e.valorTotal,0);
+
     const receita=vendas.reduce((s,v)=>s+v.receita,0);
     const custo=vendas.reduce((s,v)=>s+v.custoTotal,0);
     const resultado=Math.max(receita-custo,0);
@@ -589,7 +593,7 @@ async function loadAll() {
     });
     STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:movsOrdenados.slice(0,50),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
       custoMedioTrigoKg,custoMedioFarinhaKg,evolution,custoChart,
-      kpis:{caixa,trigoKg,farinhaKg,estoqueTotal:tA,resultado}};
+      kpis:{caixa,trigoKg,farinhaKg,estoqueTotal:tA,resultado,entradasQtdKg,entradasValTotal}};
 
     document.getElementById('last-update').textContent='🕐 '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('loading').style.display='none';
@@ -634,6 +638,7 @@ function renderKPIs(){
     {l:'Trigo Disponível',    v:fmtKg(k.trigoKg),    icon:'🌾',c:'var(--amber)', sub:'R$ '+cmtKg.toFixed(4)+'/kg'},
     {l:'Farinha Disponível',  v:fmtKg(k.farinhaKg),  icon:'🥖',c:'var(--green)', sub:'R$ '+cmfKg.toFixed(4)+'/kg'},
     {l:'Resultado Bruto',     v:fmtBRL(k.resultado),  icon:'📈',c:'var(--green)', sub:STATE.vendas.length+' vendas'},
+    {l:'Entradas NF — Qty',   v:fmtKg(k.entradasQtdKg||0), icon:'📥',c:'var(--cyan)', sub:fmtBRL(k.entradasValTotal||0)},
   ];
   document.getElementById('kpi-grid').innerHTML=cards.map(c=>`
     <div class="kpi" style="--kc:${c.c}">
@@ -724,8 +729,17 @@ function renderContratos(){
   });
   h+='</table></div></div>';
   if(STATE.entradas.length>0){
+    const totEntQtd=STATE.entradas.reduce((s,e)=>s+e.qtd,0);
+    const totEntVal=STATE.entradas.reduce((s,e)=>s+e.valorTotal,0);
     h+=`<div class="section"><div class="sec-head"><div class="sec-title">📥 Entradas de NF (${STATE.entradas.length})</div></div><div class="table-wrap"><table>
-    <tr><th>ID</th><th>NF</th><th>Fornecedor</th><th>Data</th><th>Qtd (kg)</th><th>Preço/kg</th><th>Total</th><th>Status</th></tr>`;
+    <tr><th>ID</th><th>NF</th><th>Fornecedor</th><th>Data</th><th>Qtd (kg)</th><th>Preço/kg</th><th>Total</th><th>Status</th></tr>
+    <tr style="background:var(--gold);color:#1A1200;font-weight:700">
+      <td colspan="4" style="text-align:center;letter-spacing:.05em">TOTAIS</td>
+      <td class="mono" style="color:#1A1200">${Number(totEntQtd).toLocaleString('pt-BR',{minimumFractionDigits:3})}</td>
+      <td></td>
+      <td class="mono" style="color:#1A1200">${fmtBRL(totEntVal)}</td>
+      <td></td>
+    </tr>`;
     STATE.entradas.forEach(e=>{h+=`<tr>
       <td class="mono" style="color:var(--gold)">${e.id}</td>
       <td class="mono">${e.nf}</td>
