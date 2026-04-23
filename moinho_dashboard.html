@@ -174,7 +174,7 @@ td{padding:10px 13px;color:var(--text2);font-size:13px}
         </div>
         <div class="chart-grid">
           <div class="section">
-            <div class="sec-head"><div><div class="sec-title">Custo Trigo vs Preço Venda</div><div class="sec-sub">R$/kg</div></div></div>
+            <div class="sec-head"><div><div class="sec-title">Custo Trigo vs Preço Venda</div><div class="sec-sub">🟡 Custo do trigo R$/kg &nbsp;|&nbsp; 🟢 Preço de venda R$/kg</div></div></div>
             <canvas id="chart-custo" height="180"></canvas>
           </div>
           <div class="section">
@@ -576,8 +576,8 @@ async function loadAll() {
     // Custo vs Preço e Margem — dados reais por venda
     const custoChart=vendas.map(v=>({
       d:v.data||'',
-      c:+(custoMedioFarinhaKg||1.68),
-      v:+(v.precoKg||0),
+      c:+(custoMedioTrigoKg||1.68),  // custo do trigo R$/kg
+      v:+(v.precoKg||0),              // preço de venda R$/kg
       m:+((v.receita-v.custoTotal)/(v.qtd||1)).toFixed(4),
     })).filter(x=>x.d&&x.v>0);
 
