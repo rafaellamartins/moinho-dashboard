@@ -354,11 +354,12 @@ function parsePosicao(rows) {
     });
 
     let caixa=null;
-    for(let i=hi+13;i<Math.min(hi+22,rows.length);i++){
+    for(let i=hi+12;i<Math.min(hi+22,rows.length);i++){
       if(!rows[i]) continue;
       const b=String(rows[i][1]||'').toUpperCase();
       if(b.includes('CAIXA')){
-        const v=toNum(rows[i][5])||toNum(rows[i][4])||toNum(rows[i][2]);
+        // Valor na col D (índice 3) conforme planilha
+        const v=toNum(rows[i][3])||toNum(rows[i][4])||toNum(rows[i][5])||toNum(rows[i][2]);
         caixa={label:'CAIXA / BANCOS',val:v};
         break;
       }
@@ -897,7 +898,7 @@ function renderFin(){
   const pl=plObj?plObj.val:tA-tP;
   const totalRec=ft.creditosPago||0;
   const totalPago=ft.debitosPago||0;
-  const saldoCaixa=totalRec-totalPago;
+  const saldoCaixa=STATE.financeiro.caixa?STATE.financeiro.caixa.val:totalRec-totalPago;
 
   // 1. CAIXA / BANCOS (topo)
   let h=`<div class="section" style="margin-bottom:16px">
