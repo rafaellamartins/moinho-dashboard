@@ -553,21 +553,32 @@ async function loadAll() {
       alertas.push({tipo:'ATENCAO',icon:'⚠️',msg:`${semEnt.length} contrato(s) sem entrega`,det:semEnt.map(c=>c.id).join(', ')});
     alertas.push({tipo:'INFO',icon:'📊',msg:'Dados sincronizados com Google Sheets',det:`${contratos.length} contratos · ${entradas.length} NFs · ${producoes.length} produções · ${vendas.length} vendas`});
 
-    // ── Gráfico Evolução Patrimonial — PL real da planilha ──────────────────
-    // Usa o PL calculado na POSIÇÃO_FINANC (L21) como valor atual
-    // e plota uma linha com os pontos das datas dos movimentos
-    const plReal = financeiro.pl ? financeiro.pl.val : (tA - tP);
-    // Coleta datas únicas dos movimentos para o eixo X
-    const datasMovs=[...new Set(todasMovs.map(m=>m.data).filter(Boolean))]
+    // ── Gráfico Evolução Patrimonial — PL estimado por data ─────────────────
+    // Acumula receitas BAIXADAS - despesas BAIXADAS por data
+    // para estimar a evolução do Patrimônio Líquido ao longo do tempo
+    const recPorData={}, despPorData={};
+    todasMovs.forEach(m=>{
+      if(!m.data||!m.valor) return;
+      const d=m.data;
+      if(m.tipo==='CRÉDITO'&&m.situacao==='BAIXADO'){
+        recPorData[d]=(recPorData[d]||0)+m.valor;
+      } else if(m.tipo==='DÉBITO'&&m.situacao==='BAIXADO'){
+        despPorData[d]=(despPorData[d]||0)+m.valor;
+      }
+    });
+    const todasDatas=[...new Set([...Object.keys(recPorData),...Object.keys(despPorData)])]
       .sort((a,b)=>{
         const pa=a.split('/').reverse().join('-');
         const pb=b.split('/').reverse().join('-');
         return pa.localeCompare(pb);
       });
-    // Linha reta no valor do PL real
-    const evolution = datasMovs.length>0
-      ? datasMovs.map(d=>({d, a:0, p:0, pl:plReal}))
-      : [{d:'Hoje', a:0, p:0, pl:plReal}];
+    // PL estimado = caixa acumulado + valor atual dos estoques (trigo + farinha)
+    const estoqueFixo = (loteComCusto?loteComCusto.custoTotal:0) + (ultimaFarinha?ultimaFarinha.valorTotal:0);
+    let plAcum=0;
+    const evolution=todasDatas.map(d=>{
+      plAcum += (recPorData[d]||0) - (despPorData[d]||0);
+      return {d, a:0, p:0, pl:plAcum + estoqueFixo};
+    });
 
     // Custo vs Preço e Margem — dados reais por venda
     const custoChart=vendas.map(v=>({
