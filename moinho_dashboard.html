@@ -172,7 +172,7 @@ td{padding:10px 13px;color:var(--text2);font-size:13px}
         <div class="alerts" id="alerts-box"></div>
         <div class="kpi-grid" id="kpi-grid"></div>
         <div class="section" style="margin-bottom:16px">
-          <div class="sec-head"><div><div class="sec-title">Evolução Patrimonial</div><div class="sec-sub">🟢 Receita do dia &nbsp;|&nbsp; 🟡 Caixa acumulado &nbsp;|&nbsp; 🔴 Despesa do dia</div></div></div>
+          <div class="sec-head"><div><div class="sec-title">Evolução Patrimonial</div><div class="sec-sub">🟡 Patrimônio Líquido acumulado</div></div></div>
           <canvas id="chart-evo" height="220"></canvas>
         </div>
         <div class="chart-grid">
@@ -693,9 +693,7 @@ function drawBar(id,data,labels,color,h){
 function drawCharts(){
   const ev=STATE.evolution,cc=STATE.custoChart;
   if(ev?.length) drawLine('chart-evo',[
-    {data:ev.map(d=>d.a),color:'#22c55e',fill:'rgba(34,197,94,.1)'},
     {data:ev.map(d=>d.pl),color:'#c9a84c',fill:'rgba(201,168,76,.08)'},
-    {data:ev.map(d=>d.p),color:'#ef4444',fill:'rgba(239,68,68,.06)'},
   ],ev.map(d=>d.d),220);
   if(cc?.length){
     drawLine('chart-custo',[{data:cc.map(d=>d.c),color:'#f59e0b'},{data:cc.map(d=>d.v),color:'#22c55e'}],cc.map(d=>d.d),180);
