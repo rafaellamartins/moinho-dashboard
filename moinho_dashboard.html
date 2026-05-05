@@ -991,11 +991,12 @@ function renderFin(){
   // Balanço usa sempre o valor total (não filtrado por mês)
   const caixaObj=STATE.financeiro.caixa;
   const plObj=STATE.financeiro.pl;
-  const caixa=mesFiltro?(ft.creditosPago-ft.debitosPago):(caixaObj?caixaObj.val:(ft.creditosPago||0)-(ft.debitosPago||0));
-  const pl=plObj?plObj.val:tA-tP;
+  // Quando filtro de mês ativo: recalcula do filtro; senão: usa valor da planilha
   const totalRec=ft.creditosPago||0;
   const totalPago=ft.debitosPago||0;
-  const saldoCaixa=mesFiltro?(ft.creditosPago-ft.debitosPago):(STATE.financeiro.caixa?STATE.financeiro.caixa.val:totalRec-totalPago);
+  const saldoCaixa=mesFiltro?(totalRec-totalPago):(caixaObj?caixaObj.val:STATE.finTotais.creditosPago-STATE.finTotais.debitosPago);
+  const caixa=saldoCaixa;
+  const pl=plObj?plObj.val:tA-tP;
 
   // 1. CAIXA / BANCOS (topo)
   let h=`<div class="section" style="margin-bottom:16px">
