@@ -620,7 +620,29 @@ async function loadAll() {
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
-function renderAll(){updateTopbar();renderAlerts();renderKPIs();drawCharts();renderPage(currentPage);}
+function renderAll(){
+  updateTopbar();
+  renderAlerts();
+  renderKPIs();
+  drawCharts();
+
+  // Popula seletor de meses com datas de TODAS as abas
+  const todasDatas = [
+    ...STATE.movimentos.map(m=>getMesAno(m.data)),
+    ...STATE.vendas.map(v=>getMesAno(v.data)),
+    ...STATE.producoes.map(p=>getMesAno(p.data)),
+    ...STATE.entradas.map(e=>getMesAno(e.data)),
+  ];
+  const meses = [...new Set(todasDatas.filter(Boolean))].sort();
+  const sel = document.getElementById('sel-mes');
+  if(sel){
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todos os meses</option>'
+      + meses.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m}</option>`).join('');
+  }
+
+  renderPage(currentPage);
+}
 
 function updateTopbar(){
   const k=STATE.kpis;
