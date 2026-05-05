@@ -600,7 +600,7 @@ async function loadAll() {
       const db=b.data?b.data.split('/').reverse().join('-'):'';
       return db.localeCompare(da);
     });
-    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:movsOrdenados.slice(0,50),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
+    STATE={contratos,entradas,producoes,vendas,financeiro,movimentos:movsOrdenados.slice(0,200),lotesTrigo,lotesFarinha,alertas,finTotais:_finTotais,
       custoMedioTrigoKg,custoMedioFarinhaKg,evolution,custoChart,
       kpis:{caixa,trigoKg,farinhaKg,estoqueTotal:tA,resultado,entradasQtdKg,entradasValTotal}};
 
@@ -992,15 +992,19 @@ function renderFin(){
   const caixaObj=STATE.financeiro.caixa;
   const plObj=STATE.financeiro.pl;
   // Quando filtro de mês ativo: recalcula do filtro; senão: usa valor da planilha
-  const totalRec=ft.creditosPago||0;
-  const totalPago=ft.debitosPago||0;
-  const saldoCaixa=mesFiltro?(totalRec-totalPago):(caixaObj?caixaObj.val:STATE.finTotais.creditosPago-STATE.finTotais.debitosPago);
+  // Total Recebido/Pago: filtra por mês se houver filtro
+  const totalRec  = mesFiltro ? (ft.creditosPago||0) : (STATE.finTotais.creditosPago||0);
+  const totalPago = mesFiltro ? (ft.debitosPago||0)  : (STATE.finTotais.debitosPago||0);
+  // Saldo Caixa: diferença do mês se filtrado, senão valor da planilha
+  const saldoCaixa = mesFiltro ? (totalRec - totalPago) : (caixaObj ? caixaObj.val : (STATE.finTotais.creditosPago||0)-(STATE.finTotais.debitosPago||0));
   const caixa=saldoCaixa;
   const pl=plObj?plObj.val:tA-tP;
 
   // 1. CAIXA / BANCOS (topo)
+  const caixaTitulo = mesFiltro ? `🏦 Caixa / Bancos — ${mesFiltro}` : '🏦 Caixa / Bancos';
+  const caixaSub    = mesFiltro ? `Saldo do mês ${mesFiltro} (Recebido − Pago)` : 'Posição atual — Receitas BAIXADAS − Despesas BAIXADAS';
   let h=`<div class="section" style="margin-bottom:16px">
-    <div class="sec-head"><div><div class="sec-title">🏦 Caixa / Bancos</div><div class="sec-sub">Receitas BAIXADAS − Despesas BAIXADAS</div></div></div>
+    <div class="sec-head"><div><div class="sec-title">${caixaTitulo}</div><div class="sec-sub">${caixaSub}</div></div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
       <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.25);border-radius:12px;padding:18px">
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">📈 Total Recebido</div>
@@ -1011,7 +1015,7 @@ function renderFin(){
         <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--red)">${fmtBRL(totalPago)}</div>
       </div>
       <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:18px">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">💰 Saldo em Caixa</div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">${mesFiltro?"💰 Saldo do Mês":"💰 Saldo Atual"}</div>
         <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${saldoCaixa>=0?'var(--gold)':'var(--red)'};">${fmtBRL(saldoCaixa)}</div>
       </div>
     </div>
