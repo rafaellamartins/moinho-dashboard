@@ -1056,7 +1056,9 @@ let mesFiltro = '';
 
 function filtrarMes() {
   mesFiltro = document.getElementById('sel-mes').value;
-  render(currentPage);
+  // Se estiver no dashboard, re-renderiza tudo; senão re-renderiza só a página atual
+  if(currentPage==='dash') renderAll();
+  else renderPage(currentPage);
 }
 
 function filtrarMovs(movs) {
