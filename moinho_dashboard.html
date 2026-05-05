@@ -995,10 +995,13 @@ function renderFin(){
   const sumCat = (arr, cat) => arr.filter(m=>m.categoria===cat).reduce((s,m)=>s+m.valor, 0);
 
   // ATIVO — mesmas fórmulas da planilha
+  // Estoque usa sempre o valor atual da planilha (sem histórico por data)
+  const _estTrigo  = STATE.financeiro.ativo.find(i=>i.label==='ESTOQUE DE TRIGO')?.val||0;
+  const _estFarinha= STATE.financeiro.ativo.find(i=>i.label==='ESTOQUE DE FARINHA')?.val||0;
   const atCalc = mesFiltro ? [
     {label:'TOTAL RECEBIDO',    val: receitas.filter(m=>m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0)},
-    {label:'ESTOQUE DE TRIGO',  val: STATE.financeiro.ativo.find(i=>i.label==='ESTOQUE DE TRIGO')?.val||0},
-    {label:'ESTOQUE DE FARINHA',val: STATE.financeiro.ativo.find(i=>i.label==='ESTOQUE DE FARINHA')?.val||0},
+    {label:'ESTOQUE DE TRIGO',  val: _estTrigo},
+    {label:'ESTOQUE DE FARINHA',val: _estFarinha},
     {label:'CONTAS A RECEBER',  val: receitas.filter(m=>m.situacao==='PENDENTE'||m.situacao==='VENCIDO').reduce((s,m)=>s+m.valor,0)},
     {label:'OUTROS ATIVOS',     val: 0},
   ] : (STATE.financeiro.ativo||[]);
