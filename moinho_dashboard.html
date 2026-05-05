@@ -988,7 +988,34 @@ function renderFin(){
     },{}),
   };
 
-  // Balanço usa sempre o valor total (não filtrado por mês)
+  // Recalcula ativo e passivo conforme filtro de mês
+  const receitas = mesFiltro ? STATE.movimentos.filter(m=>m.tipo==='CRÉDITO'&&getMesAno(m.data)===mesFiltro) : STATE.movimentos.filter(m=>m.tipo==='CRÉDITO');
+  const despesas = mesFiltro ? STATE.movimentos.filter(m=>m.tipo==='DÉBITO'&&getMesAno(m.data)===mesFiltro)  : STATE.movimentos.filter(m=>m.tipo==='DÉBITO');
+
+  const sumCat = (arr, cat) => arr.filter(m=>m.categoria===cat).reduce((s,m)=>s+m.valor, 0);
+
+  // ATIVO — mesmas fórmulas da planilha
+  const atCalc = mesFiltro ? [
+    {label:'TOTAL RECEBIDO',    val: receitas.filter(m=>m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0)},
+    {label:'ESTOQUE DE TRIGO',  val: STATE.financeiro.ativo.find(i=>i.label==='ESTOQUE DE TRIGO')?.val||0},
+    {label:'ESTOQUE DE FARINHA',val: STATE.financeiro.ativo.find(i=>i.label==='ESTOQUE DE FARINHA')?.val||0},
+    {label:'CONTAS A RECEBER',  val: receitas.filter(m=>m.situacao==='PENDENTE'||m.situacao==='VENCIDO').reduce((s,m)=>s+m.valor,0)},
+    {label:'OUTROS ATIVOS',     val: 0},
+  ] : (STATE.financeiro.ativo||[]);
+
+  // PASSIVO — mesmas fórmulas da planilha (SUMIF por categoria)
+  const CATS_PASSIVO = [
+    'ADIANTAMENTO SOCIOS','DESAGIO','DESPESAS ADMINISTRATIVAS',
+    'FRETE FARINHA','FRETE TRIGO','PRE FATURAMENTO INTEGRAL',
+    'TRIGO','TARIFAS','COMISSAO TRIGO','RETENÇÃO FUNDOS','OUTRAS DESPESAS'
+  ];
+  const paCalc = mesFiltro
+    ? CATS_PASSIVO.map(cat=>({label:cat, val:sumCat(despesas,cat)}))
+    : (STATE.financeiro.passivo||[]);
+
+  const atFinal = atCalc;
+  const paFinal = paCalc;
+
   const caixaObj=STATE.financeiro.caixa;
   const plObj=STATE.financeiro.pl;
   // Quando filtro de mês ativo: recalcula do filtro; senão: usa valor da planilha
@@ -1026,17 +1053,17 @@ function renderFin(){
     <div class="sec-head"><div><div class="sec-title">Balanço Patrimonial</div><div class="sec-sub">📊 Aba POSIÇÃO FINANC. — atualizado em tempo real</div></div></div>
     <div class="fin-grid">
       <div class="fin-col"><div class="fin-hdr a">● ATIVO</div>
-        ${at.length>0?at.map(i=>`<div class="fin-row"><span class="fin-lbl">${i.label}</span><span class="fin-val" style="color:var(--green)">${fmtBRL(i.val)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>'}
-        <div class="fin-tot"><span>Total Ativo</span><span class="fin-val" style="color:var(--green)">${fmtBRL(tA)}</span></div>
+        ${atFinal.length>0?atFinal.map(i=>`<div class="fin-row"><span class="fin-lbl">${i.label}</span><span class="fin-val" style="color:var(--green)">${fmtBRL(i.val)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>'}
+        <div class="fin-tot"><span>Total Ativo</span><span class="fin-val" style="color:var(--green)">${fmtBRL(atFinal.reduce((s,i)=>s+i.val,0))}</span></div>
       </div>
       <div class="fin-col"><div class="fin-hdr p">● PASSIVO</div>
-        ${pa.length>0?pa.map(i=>`<div class="fin-row"><span class="fin-lbl">${i.label}</span><span class="fin-val" style="color:var(--red)">${fmtBRL(i.val)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>'}
-        <div class="fin-tot"><span>Total Passivo</span><span class="fin-val" style="color:var(--red)">${fmtBRL(tP)}</span></div>
+        ${paFinal.length>0?paFinal.map(i=>`<div class="fin-row"><span class="fin-lbl">${i.label}</span><span class="fin-val" style="color:var(--red)">${fmtBRL(i.val)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>'}
+        <div class="fin-tot"><span>Total Passivo</span><span class="fin-val" style="color:var(--red)">${fmtBRL(paFinal.reduce((s,i)=>s+i.val,0))}</span></div>
       </div>
     </div>
     <div class="pl-box">
-      <div><div class="pl-lbl">Patrimônio Líquido (Ativo − Passivo)</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtBRL(tA)} − ${fmtBRL(tP)}</div></div>
-      <div class="pl-val" style="color:${pl>=0?'var(--gold)':'var(--red)'};">${fmtBRL(pl)}</div>
+      <div><div class="pl-lbl">Patrimônio Líquido (Ativo − Passivo)</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtBRL(atFinal.reduce((s,i)=>s+i.val,0))} − ${fmtBRL(paFinal.reduce((s,i)=>s+i.val,0))}</div></div>
+      <div class="pl-val" style="color:${(atFinal.reduce((s,i)=>s+i.val,0)-paFinal.reduce((s,i)=>s+i.val,0))>=0?'var(--gold)':'var(--red)'};">${fmtBRL(atFinal.reduce((s,i)=>s+i.val,0)-paFinal.reduce((s,i)=>s+i.val,0))}</div>
     </div>
   </div>`;
 
