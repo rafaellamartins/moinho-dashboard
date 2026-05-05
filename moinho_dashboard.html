@@ -659,21 +659,48 @@ function drawLine(id,datasets,labels,h){
   const ctx=c.getContext('2d'),W=c.width,H=c.height,pad={t:10,r:10,b:30,l:72};
   const dw=W-pad.l-pad.r,dh=H-pad.t-pad.b;
   ctx.clearRect(0,0,W,H);
-  const allV=datasets.flatMap(d=>d.data).filter(v=>isFinite(v)&&v>0);
+  // Inclui valores negativos no cálculo do eixo Y
+  const allV=datasets.flatMap(d=>d.data).filter(v=>isFinite(v));
   if(!allV.length)return;
   const _min=Math.min(...allV),_max=Math.max(...allV);
-  const minV=_min<0?_min*1.1:_min*.9;
-  const maxV=_max>0?_max*1.05:_max*.95;
-  const xS=dw/(labels.length-1||1),yS=v=>pad.t+dh-(((v-minV)/(maxV-minV||1))*dh);
+  const pad_pct=(_max-_min)*0.08||Math.abs(_max)*0.1||1;
+  const minV=_min - pad_pct;
+  const maxV=_max + pad_pct;
+  const range=maxV-minV||1;
+  const xS=dw/(labels.length-1||1);
+  const yS=v=>pad.t+dh-(((v-minV)/range)*dh);
+  const y0=yS(0); // posição do zero no canvas
+  // Grade horizontal
   ctx.strokeStyle='#1e2d3d';ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){const y=pad.t+dh*(i/4);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+dw,y);ctx.stroke();ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='right';ctx.fillText(fmtK(maxV-(maxV-minV)*i/4),pad.l-4,y+4);}
+  for(let i=0;i<=4;i++){
+    const y=pad.t+dh*(i/4);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+dw,y);ctx.stroke();
+    ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='right';
+    ctx.fillText(fmtK(maxV-(range)*i/4),pad.l-4,y+4);
+  }
+  // Linha do zero (se houver valores negativos)
+  if(_min<0&&_max>0){
+    ctx.strokeStyle='#475569';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(pad.l,y0);ctx.lineTo(pad.l+dw,y0);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // Labels eixo X
   const ls=Math.ceil(labels.length/8);
   labels.forEach((l,i)=>{if(i%ls===0||i===labels.length-1){ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='center';ctx.fillText(l,pad.l+i*xS,H-8);}});
+  // Datasets
   datasets.forEach(ds=>{
     ctx.beginPath();ctx.strokeStyle=ds.color;ctx.lineWidth=2;ctx.lineJoin='round';
     ds.data.forEach((v,i)=>{const x=pad.l+i*xS,y=yS(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
     ctx.stroke();
-    if(ds.fill){ctx.beginPath();ds.data.forEach((v,i)=>{const x=pad.l+i*xS,y=yS(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.lineTo(pad.l+dw,pad.t+dh);ctx.lineTo(pad.l,pad.t+dh);ctx.closePath();ctx.fillStyle=ds.fill;ctx.fill();}
+    // Fill até a linha zero (não até o fundo)
+    if(ds.fill){
+      ctx.beginPath();
+      ds.data.forEach((v,i)=>{const x=pad.l+i*xS,y=yS(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+      const zeroY=Math.min(Math.max(y0,pad.t),pad.t+dh);
+      ctx.lineTo(pad.l+(ds.data.length-1)*xS,zeroY);
+      ctx.lineTo(pad.l,zeroY);
+      ctx.closePath();ctx.fillStyle=ds.fill;ctx.fill();
+    }
   });
 }
 function drawBar(id,data,labels,color,h){
