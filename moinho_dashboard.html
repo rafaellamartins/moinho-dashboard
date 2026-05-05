@@ -233,6 +233,12 @@ const fmtDate = v => {
   return s;
 };
 // Formata kg com separador de milhar e 3 casas decimais
+// Extrai MM/YYYY de uma data DD/MM/YYYY
+const getMesAno = d => {
+  if(!d||d==='—') return '';
+  const m = String(d).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? m[2]+'/'+m[3] : '';
+};
 const fmtKg  = v => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:3}) + ' kg';
 // Exibe em kg se < 1.000.000, em toneladas se maior (para topbar compacta)
 const fmtKgCompact = v => {
@@ -1036,7 +1042,7 @@ function filtrarPorData(arr, campoData) {
   if(!mesFiltro) return arr;
   return arr.filter(item=>{
     const d = item[campoData]||'';
-    return d.substring(3,10)===mesFiltro;
+    return getMesAno(d)===mesFiltro;
   });
 }
 
@@ -1047,7 +1053,7 @@ function renderMensal() {
   // Agrupa movimentos por mês
   const meses = {};
   STATE.movimentos.forEach(m => {
-    const mes = m.data ? m.data.substring(3,10) : null;
+    const mes = getMesAno(m.data);
     if(!mes) return;
     if(!meses[mes]) meses[mes] = {rec:0,recBaix:0,desp:0,despBaix:0,vendQtd:0,vendVal:0,prodQtd:0};
     if(m.tipo==='CRÉDITO'){
@@ -1061,7 +1067,7 @@ function renderMensal() {
 
   // Vendas por mês
   STATE.vendas.forEach(v => {
-    const mes = v.data ? v.data.substring(3,10) : null;
+    const mes = getMesAno(v.data);
     if(!mes||!meses[mes]) return;
     meses[mes].vendQtd += v.qtd||0;
     meses[mes].vendVal += v.receita||0;
@@ -1069,7 +1075,7 @@ function renderMensal() {
 
   // Produção por mês
   STATE.producoes.forEach(p => {
-    const mes = p.data ? p.data.substring(3,10) : null;
+    const mes = getMesAno(p.data);
     if(!mes) return;
     if(!meses[mes]) meses[mes] = {rec:0,recBaix:0,desp:0,despBaix:0,vendQtd:0,vendVal:0,prodQtd:0};
     meses[mes].prodQtd += p.farinha||0;
