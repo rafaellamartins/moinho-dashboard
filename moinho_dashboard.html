@@ -500,7 +500,7 @@ async function loadAll() {
     // Recalcula totais separados por aba
     const todasMovs = [...receitas, ...despesas];
     const _finTotais = {
-      totalCreditos: todasMovs.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
+      totalCreditos: (mesFiltro?todasMovs.filter(m=>getMesAno(m.data)===mesFiltro):todasMovs).filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
       totalDebitos:  todasMovs.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
       creditosPago:  todasMovs.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
       debitosPago:   todasMovs.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
@@ -747,6 +747,7 @@ function renderPage(id){
 
 function renderContratos(){
   const el=document.getElementById('contratos-content');
+  const entradas=mesFiltro?STATE.entradas.filter(e=>getMesAno(e.data)===mesFiltro):STATE.entradas;
   const total=STATE.contratos.reduce((s,c)=>s+c.valorTotal,0);
   let h=`<div style="font-size:13px;color:var(--text3);margin-bottom:14px">${STATE.contratos.length} contratos · Total: ${fmtBRL(total)}</div>
   <div class="section"><div class="sec-head"><div class="sec-title">📋 Contratos de Compra</div></div><div class="table-wrap"><table>
@@ -766,11 +767,11 @@ function renderContratos(){
   });
   h+='</table></div></div>';
   if(STATE.entradas.length>0){
-    const totEntQtd=STATE.entradas.reduce((s,e)=>s+e.qtd,0);
-    const totEntVal=STATE.entradas.reduce((s,e)=>s+e.valorTotal,0);
+    const totEntQtd=entradas.reduce((s,e)=>s+e.qtd,0);
+    const totEntVal=entradas.reduce((s,e)=>s+e.valorTotal,0);
     h+=`<div class="section">
     <div class="sec-head" style="flex-direction:column;align-items:flex-start;gap:4px">
-      <div><div class="sec-title">📥 Entradas de NF (${STATE.entradas.length})</div></div>
+      <div><div class="sec-title">📥 Entradas de NF (${entradas.length}${mesFiltro?' — '+mesFiltro:''})</div></div>
       <div style="display:flex;gap:32px;font-size:12px;font-weight:600;color:var(--gold);padding:2px 0">
         <span>📦 Total: <span class="mono">${Number(totEntQtd).toLocaleString('pt-BR',{minimumFractionDigits:3})} kg</span></span>
         <span>💰 Valor: <span class="mono">${fmtBRL(totEntVal)}</span></span>
@@ -778,7 +779,7 @@ function renderContratos(){
     </div>
     <div class="table-wrap"><table>
     <tr><th>ID</th><th>NF</th><th>Fornecedor</th><th>Data</th><th>Qtd (kg)</th><th>Preço/kg</th><th>Total</th><th>Status</th></tr>`;
-    STATE.entradas.forEach(e=>{h+=`<tr>
+    entradas.forEach(e=>{h+=`<tr>
       <td class="mono" style="color:var(--gold)">${e.id}</td>
       <td class="mono">${e.nf}</td>
       <td class="bold trunc">${e.fornecedor}</td>
@@ -866,7 +867,8 @@ function renderEstoque(){
 }
 
 function renderProducao(){
-  const ps=STATE.producoes,el=document.getElementById('producao-content');
+  const el=document.getElementById('producao-content');
+  const ps=mesFiltro?STATE.producoes.filter(p=>getMesAno(p.data)===mesFiltro):STATE.producoes;
   const tT=ps.reduce((s,p)=>s+p.trigo,0);   // kg
   const tF=ps.reduce((s,p)=>s+p.farinha,0); // kg
   const tC=ps.reduce((s,p)=>s+p.custo,0);
@@ -903,7 +905,8 @@ function renderProducao(){
 }
 
 function renderVendas(){
-  const vs=STATE.vendas,el=document.getElementById('vendas-content');
+  const el=document.getElementById('vendas-content');
+  const vs=mesFiltro?STATE.vendas.filter(v=>getMesAno(v.data)===mesFiltro):STATE.vendas;
   const rec=vs.reduce((s,v)=>s+v.receita,0);
   const vol=vs.reduce((s,v)=>s+v.qtd,0); // kg
   const mm=vs.length>0?(vs.reduce((s,v)=>s+(v.margem>1?v.margem:v.margem*100),0)/vs.length).toFixed(1):0;
@@ -1008,10 +1011,11 @@ function renderFin(){
   }
 
   // 4. ÚLTIMOS MOVIMENTOS
-  if(STATE.movimentos.length>0){
-    h+=`<div class="section"><div class="sec-head"><div class="sec-title">💰 Últimos Movimentos</div></div><div class="table-wrap"><table>
+  const movsFiltrados=mesFiltro?STATE.movimentos.filter(m=>getMesAno(m.data)===mesFiltro):STATE.movimentos;
+  if(movsFiltrados.length>0){
+    h+=`<div class="section"><div class="sec-head"><div class="sec-title">💰 Últimos Movimentos${mesFiltro?' — '+mesFiltro:''}</div></div><div class="table-wrap"><table>
     <tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr>`;
-    STATE.movimentos.forEach(m=>{h+=`<tr>
+    movsFiltrados.forEach(m=>{h+=`<tr>
       <td>${m.data}</td><td>${badge(m.tipo)}</td>
       <td style="font-size:11px">${m.categoria}</td>
       <td class="trunc">${m.descricao}</td>
