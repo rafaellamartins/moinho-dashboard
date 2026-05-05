@@ -661,7 +661,9 @@ function drawLine(id,datasets,labels,h){
   ctx.clearRect(0,0,W,H);
   const allV=datasets.flatMap(d=>d.data).filter(v=>isFinite(v)&&v>0);
   if(!allV.length)return;
-  const minV=Math.min(...allV)*.9,maxV=Math.max(...allV)*1.05;
+  const _min=Math.min(...allV),_max=Math.max(...allV);
+  const minV=_min<0?_min*1.1:_min*.9;
+  const maxV=_max>0?_max*1.05:_max*.95;
   const xS=dw/(labels.length-1||1),yS=v=>pad.t+dh-(((v-minV)/(maxV-minV||1))*dh);
   ctx.strokeStyle='#1e2d3d';ctx.lineWidth=1;
   for(let i=0;i<=4;i++){const y=pad.t+dh*(i/4);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+dw,y);ctx.stroke();ctx.fillStyle='#475569';ctx.font='10px Sora,sans-serif';ctx.textAlign='right';ctx.fillText(fmtK(maxV-(maxV-minV)*i/4),pad.l-4,y+4);}
