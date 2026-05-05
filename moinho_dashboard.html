@@ -968,14 +968,34 @@ function renderFin(){
   const el=document.getElementById('fin-content');
   const at=STATE.financeiro.ativo||[],pa=STATE.financeiro.passivo||[];
   const tA=at.reduce((s,i)=>s+i.val,0),tP=pa.reduce((s,i)=>s+i.val,0);
-  const ft=STATE.finTotais||{};
+
+  // Recalcula totais com filtro de mês aplicado
+  const movsBase = STATE.movimentos;
+  const movsFilt = mesFiltro ? movsBase.filter(m=>getMesAno(m.data)===mesFiltro) : movsBase;
+  const ft = {
+    creditosPago:  movsFilt.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
+    debitosPago:   movsFilt.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='BAIXADO').reduce((s,m)=>s+m.valor,0),
+    creditosPend:  movsFilt.filter(m=>m.tipo==='CRÉDITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+    debitosPend:   movsFilt.filter(m=>m.tipo==='DÉBITO'&&m.situacao==='PENDENTE').reduce((s,m)=>s+m.valor,0),
+    totalCreditos: movsFilt.filter(m=>m.tipo==='CRÉDITO').reduce((s,m)=>s+m.valor,0),
+    totalDebitos:  movsFilt.filter(m=>m.tipo==='DÉBITO').reduce((s,m)=>s+m.valor,0),
+    porCategoria:  movsFilt.reduce((acc,m)=>{
+      if(!acc[m.categoria]) acc[m.categoria]={tipo:m.tipo,total:0,pago:0,pend:0};
+      acc[m.categoria].total+=m.valor;
+      if(m.situacao==='BAIXADO') acc[m.categoria].pago+=m.valor;
+      else if(m.situacao==='PENDENTE') acc[m.categoria].pend+=m.valor;
+      return acc;
+    },{}),
+  };
+
+  // Balanço usa sempre o valor total (não filtrado por mês)
   const caixaObj=STATE.financeiro.caixa;
   const plObj=STATE.financeiro.pl;
-  const caixa=caixaObj?caixaObj.val:(ft.creditosPago||0)-(ft.debitosPago||0);
+  const caixa=mesFiltro?(ft.creditosPago-ft.debitosPago):(caixaObj?caixaObj.val:(ft.creditosPago||0)-(ft.debitosPago||0));
   const pl=plObj?plObj.val:tA-tP;
   const totalRec=ft.creditosPago||0;
   const totalPago=ft.debitosPago||0;
-  const saldoCaixa=STATE.financeiro.caixa?STATE.financeiro.caixa.val:totalRec-totalPago;
+  const saldoCaixa=mesFiltro?(ft.creditosPago-ft.debitosPago):(STATE.financeiro.caixa?STATE.financeiro.caixa.val:totalRec-totalPago);
 
   // 1. CAIXA / BANCOS (topo)
   let h=`<div class="section" style="margin-bottom:16px">
@@ -1033,7 +1053,7 @@ function renderFin(){
   }
 
   // 4. ÚLTIMOS MOVIMENTOS
-  const movsFiltrados=mesFiltro?STATE.movimentos.filter(m=>getMesAno(m.data)===mesFiltro):STATE.movimentos;
+  const movsFiltrados=movsFilt;
   if(movsFiltrados.length>0){
     h+=`<div class="section"><div class="sec-head"><div class="sec-title">💰 Últimos Movimentos${mesFiltro?' — '+mesFiltro:''}</div></div><div class="table-wrap"><table>
     <tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr>`;
